@@ -45,8 +45,10 @@ apertureYMeasurement = apertureY[:,1]
 apertureXMeasurement = apMeasPreProcessManip(apertureXMeasurement,apMeasPreProcessType)
 apertureYMeasurement = apMeasPreProcessManip(apertureYMeasurement,apMeasPreProcessType)
 
-plt.plot(apertureXPosition,apertureXMeasurement)
-plt.show()
+tempBeamArrayX = beamScalingRowWise(apertureYMeasurement,apertureXMeasurement)
+tempBeamArrayY = beamScalingColWise(apertureYMeasurement,apertureXMeasurement)
 
-tempBeamArrayX = beamScalingRowWise(apertureXMeasurement,apertureYMeasurement)
-tempBeamArrayY = beamScalingColWise(apertureXMeasurement,apertureYMeasurement)
+convolvedBeamArray = (tempBeamArrayX + tempBeamArrayY) / 2
+
+plt.imshow(convolvedBeamArray)
+plt.show()
