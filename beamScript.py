@@ -54,6 +54,7 @@ def beamScalingRowWise(rows,cols):
         beamArray    -2D numpy array of floats representing an expected set of i_pins values
                         if the readings were taken across the 2D area
     """
+    print 'Performing row-wise scaling of i_pin measurements to generate temporary beam array'
     beamArray = np.zeros((rows.size,cols.size), dtype=np.float64)     #Preallocate beam array
     maxValue = rows.max()             #Get the maximum i_pin value in the vertical direction
 
@@ -74,6 +75,7 @@ def beamScalingColWise(rows,cols):
         beamArray    -2D numpy array of floats representing an expected set of i_pins values
                         if the readings were taken across the 2D area
     """
+    print 'Performing column-wise scaling of i_pin measurements to generate temporary beam array'
     beamArray = np.zeros((rows.size,cols.size), dtype=np.float64)     #Preallocate beam array
     maxValue = cols.max()          #Get the maximum i_pin value in the horizontal direction
 
@@ -95,6 +97,7 @@ def createAperturePSF(apertureDiameter,apertureStep):
         psf                     - A 2D numpy array of integers, either 1's or 0's. 1's represent
                                     the area covered by the aperture.
     """
+    print 'Generating the Point Spread Function of the {} micron diameter aperture with a measurement step of {} microns'.format(apertureDiameter,apertureStep)
     #Calculate the aperture radius from the diameter
     apertureRadius = apertureDiameter / 2.0
 
