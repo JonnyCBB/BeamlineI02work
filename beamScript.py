@@ -6,7 +6,25 @@ from scipy import signal
 from scipy.optimize import minimize
 from skimage import restoration
 
-def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, apMeasPreProcessType, apDiameter, apStep):
+def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep):
+    """Create a beam array from aperture scan measurements
+
+    INPUTS:
+        beamApMeasXFilename     -string with the location of the aperture scan measurements in the horizontal (x)
+                                    direction.
+        beamApMeasYFilename     -string with the location of the aperture scan measurements in the vertical (y)
+                                    direction.
+        beamPostProcessingType  -string giving the type of processing that should be carried out on the beam
+                                    array once the deconvolution has taken place.
+        apertureDiameter        -The diameter of the aperture in microns
+        apertureStep            -The incremental position at which consecutive i_pin readings
+                                    are taken (in microns).
+
+    OUTPUTS:
+        beamArray               -A 2D numpy array of integer values as a spatially resolved representation
+                                    of relative intensities. The values should be between 0 and 255 to be
+                                    compatible with the .pgm file format.
+    """
     #load the .dat file and store aperture data in a 2D numpy array.
     #Then split the 2D array into two 1D arrays, one to store the i_pin readings.
     #and one to store the aperture positions.
@@ -18,10 +36,6 @@ def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, apMeasPrePr
     apertureY = np.loadtxt(beamApMeasYFilename,skiprows=7)
     apertureYPosition = apertureY[:,0]
     apertureYMeasurement = apertureY[:,1]
-
-    #Apply preprocessing to the aperture measurements
-    apertureXMeasurement = apMeasPreProcessManip(apertureXMeasurement,apMeasPreProcessType)
-    apertureYMeasurement = apMeasPreProcessManip(apertureYMeasurement,apMeasPreProcessType)
 
     #Create temporary 2D beam arrays using both row and column wise scaling
     tempBeamArrayX = beamScalingRowWise(apertureYMeasurement,apertureXMeasurement)
@@ -45,46 +59,47 @@ def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, apMeasPrePr
     #Deblur the image
     deconvolvedBeamArray = signal.wiener(blurredBeamArray,aperturePSF.shape,res.x[0])
 
-    return deconvolvedBeamArray
+    #Apply post processing on the beam array
+    processedBeamArray = beamPostProcessManip(deconvolvedBeamArray,beamPostProcessingType)
 
-def apMeasPreProcessManip(apMeas,processType):
+    #Transform all values so they lie between 0 and 255
+    scalingValue = 255 / processedBeamArray.max()
+    beamArray = np.around(processedBeamArray * scalingValue)
+
+    return beamArray
+
+def beamPostProcessManip(beamArray,processType):
     """Function that applies some processing to the aperture measurements
     prior to using them to create a beam.
 
     INPUTS:
-        apMeas         - The i_pin measurement recordings from the aperture measurements
-                        as a numpy array with float data types
-        ProcessType    - The type of processing performed input as a string. There are 4
+        beamArray      - The deconvolved beam array as a 2D numpy array of floats.
+        ProcessType    - The type of processing performed input as a string. There are 3
                         types of processing options available:
-                        1) "positive" - uses only recordings where the i_pin reading were
-                        positive. NOTE: This option is not recommended because it changes
-                        the number of data points and it's likely that this option will
-                        break the rest of the code. I haven't tested this but I haven't
-                        had time to address the potential issue.
-                        2) "shift" - If the minimum i_pin reading is negative than it will
-                        add the absolute value of that reading to all values in the apMeas
+                        1) "shift" - If the minimum beam array reading is negative than it will
+                        add the absolute value of that reading to all values in the beamArray
                         array. This has the effect of shifting all the values up so every
                         value is above zero.
-                        3)"threshold" - Any negative i_pin reading is set to zero.
-                        4) "" - Any other string input will not do any preprocessing.
+                        2)"threshold" - Any negative beam array reading is set to zero.
+                        3) "" - Any other string input will not do any preprocessing.
 
     OUTPUTS:
-        apMeas         - A 1D numpy array of floats containing the processed i_pin readings
+        beamArray         - A 2D numpy array of floats containing the processed beam array values.
     """
     if processType == "positive":
-        print 'Preprocessing type used on the i_pin measurements: "{}" '.format(processType)
-        apMeas = apMeas[apMeas >= 0]     #Only use non-negative values (NOT RECOMMENDED)
+        print 'Post processing type used on the beam array: "{}" '.format(processType)
+        beamArray = beamArray[beamArray >= 0]     #Only use non-negative values (NOT RECOMMENDED)
     elif processType == "shift":
-        print 'Preprocessing type used on the i_pin measurements: "{}" '.format(processType)
-        minValue = apMeas.min()         #Find minimum value
+        print 'Post processing type used on the beam array: "{}" '.format(processType)
+        minValue = beamArray.min()         #Find minimum value
         if minValue < 0:
-            apMeas = math.fabs(minValue) + apMeas     #If minimum value is negative then shift all the values up so they are positive
+            beamArray = math.fabs(minValue) + beamArray     #If minimum value is negative then shift all the values up so they are positive
     elif processType == "threshold":
-        print 'Preprocessing type used on the i_pin measurements: "{}" '.format(processType)
-        apMeas[apMeas < 0] = 0         #Set negative values to zero
+        print 'Post processing type used on the beam array: "{}" '.format(processType)
+        beamArray[beamArray < 0] = 0         #Set negative values to zero
     else:
-        print 'No preprocessing has been performed on the i_pin measurements.'
-    return apMeas
+        print 'No post processing has been performed on the beam array measurements.'
+    return beamArray
 
 def beamScalingRowWise(rows,cols):
     """Scales the i_pin measurements in the horizontal direction according to the normalised
@@ -261,6 +276,25 @@ def rootMeanSquaredDeviation(xPredicted,xMeasured):
 
 
 def deblurBeamObjectiveFunction(noiseRatio,beamArray,psf,actualApMeasurementX,actualApMeasurementY):
+    """Objective function used to deblur the deconvolved beam image.
+    An objective funtion is a function whos output is required to be optimal (in this case our optimal value
+    is the minimal one) by some optimisation routine. One, or many arguments can be altered by the
+    optimisation routine. In this case that parameter is the noiseRatio.
+
+    INPUTS:
+        noiseRatio            -A scalar value that represents the noise-power term in the wiener deconvolution
+                                function
+        beamArray             -A 2D numpy array of floats that represents the theoretical deconvolved i_pin
+                                readings at each point in the space.
+        psf                   -A 2D numpy array of floats that represents the aperture used to measure the
+                                beam intensity.
+        actualApMeasurementX  -Measured i_pin readings in the horizontal direction as a 1D numpy array of floats
+        actualApMeasurementY  -Measured i_pin readings in the vertical direction as a 1D numpy array of floats
+
+    OUTPUTS:
+        totalRMSD             -The sum of the root mean squared deviations of the theoretical and measured
+                                i_pin readings.
+    """
     #Deblur the image
     deconvolvedBeamArray = signal.wiener(beamArray,psf.shape,noiseRatio)
 
@@ -278,6 +312,6 @@ def deblurBeamObjectiveFunction(noiseRatio,beamArray,psf,actualApMeasurementX,ac
 
 beam = generateBeamFromApMeas("20141216/20141216_Beam_profile_x_sma_ap.dat",
                              "20141216/20141216_Beam_profile_y_sma_ap.dat",
-                              "None",
+                              "threshold",
                               10,
                               2)
