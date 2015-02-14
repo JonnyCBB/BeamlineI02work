@@ -141,6 +141,66 @@ def createAperturePSF(apertureDiameter,apertureStep):
 
     return psf     #Return the point spread function
 
+##########################################################
+def simulateApertureScans(beamArray,psf):
+    """Function that uses a beam array and a point spread function representing the aperture
+    to simulate the aperture scans carried out on the I02 beamline at Diamond Light Source.
+
+    INPUTS:
+        beamArray         -A 2D numpy array of floats that represents the theoretical deconvolved i_pin
+                            readings at each point in the space.
+        psf               -A 2D numpy array of floats that represents the aperture used to measure the
+                            beam intensity.
+
+    OUTPUTS:
+
+
+    """
+
+    #Calculate total number of elements to be added in each dimension of beam matrix
+    matrixBuffer = int(2*math.floor(psf.shape[0]/2))
+
+    #Preallocate the buffered matrix. It's buffered with zeros around the outside
+    bufferedBeamMatrix = np.zeros((beamArray.shape[0] + matrixBuffer, beamArray.shape[1] + matrixBuffer), dtype=np.float)
+
+    #Check if the beam matrix has been cropped in the second dimension by the deconvolution process
+    if bufferedBeamMatrix.shape[0] == bufferedBeamMatrix.shape[1]:
+        beamArrayCrop = 0
+    else:
+        beamArrayCrop = bufferedBeamMatrix.shape[0] - bufferedBeamMatrix.shape[1]
+
+    #Fill bufferedBeamMatrix with elements from the actual beam array.
+    for i in xrange(matrixBuffer / 2, bufferedBeamMatrix.shape[0] - (matrixBuffer / 2)):
+        for j in xrange(matrixBuffer / 2, bufferedBeamMatrix.shape[1] - (matrixBuffer / 2)):
+            bufferedBeamMatrix[i,j] = beamArray[i - (matrixBuffer / 2), j - (matrixBuffer / 2)]
+
+    #Preallocate arrays to contain simulated aperture scan measurements
+    simApScanX = np.zeros(beamArray.shape[1], dtype=np.float)
+    simApScanY = np.zeros(beamArray.shape[0], dtype=np.float)
+
+    #Get the central element for horizontal (X) and the vertical (Y) scans
+    apScanRow = int(math.floor(beamArray.shape[0] / 2) + matrixBuffer / 2)
+    apScanCol = int(math.floor((beamArray.shape[1] + beamArrayCrop) / 2) + matrixBuffer / 2)
+
+    #Simulate horizontal aperture scan
+    for col in xrange(matrixBuffer / 2, bufferedBeamMatrix.shape[1] - (matrixBuffer / 2)):
+        for i in xrange(0,psf.shape[0]):
+            for j in xrange(0,psf.shape[1]):
+                a = i - matrixBuffer / 2
+                b = j - matrixBuffer / 2
+                simApScanX[col - matrixBuffer] += bufferedBeamMatrix[apScanRow + a, col + b] * psf[i,j]
+
+    #Simulate vertical aperture scan
+    for row in xrange(matrixBuffer / 2, bufferedBeamMatrix.shape[0] - (matrixBuffer / 2)):
+        for i in xrange(0,psf.shape[0]):
+            for j in xrange(0,psf.shape[1]):
+                a = i - matrixBuffer / 2
+                b = j - matrixBuffer / 2
+                simApScanY[row - matrixBuffer] += bufferedBeamMatrix[row + a, apScanCol + b] * psf[i,j]
+
+    return(simApScanX, simApScanY)
+
+
 ############ Input Variables ###########
 beamApMeasXFilename = "20141216/20141216_Beam_profile_x_sma_ap.dat" #location of horizontal i_pin readings .dat file
 beamApMeasYFilename = "20141216/20141216_Beam_profile_y_sma_ap.dat" #location of vertical i_pin readings .dat file
@@ -173,7 +233,7 @@ convolvedBeamArray = (tempBeamArrayX + tempBeamArrayY) / 2
 
 plt.figure(1)
 plt.imshow(convolvedBeamArray,cmap='jet')
-plt.colorbar()
+#plt.colorbar()
 plt.show()
 
 #Create the aperture Point Spread Function.
@@ -184,9 +244,20 @@ blurredBeamTuple = restoration.unsupervised_wiener(convolvedBeamArray, apertureP
 blurredBeamArray = blurredBeamTuple[0]     #Get beam array
 plt.figure(2)
 plt.imshow(blurredBeamArray,cmap='jet')
-plt.colorbar()
+#plt.colorbar()
 plt.show()
 
 #Deblur the image
 deconvolved = signal.wiener(blurredBeamArray,aperturePSF.shape,20)
 
+a = simulateApertureScans(beamArray,psf)
+
+plt.figure(3)
+plt.plot(apertureYPosition,apertureYMeasurement,'ro')
+plt.plot(apertureYPosition,simApScanY,'b-')
+plt.show()
+
+plt.figure(4)
+plt.plot(apertureXPosition,apertureXMeasurement,'ro')
+plt.plot(apertureXPosition[0:-beamArrayCrop],simApScanX,'b-')
+plt.show()
