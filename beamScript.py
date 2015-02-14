@@ -3,7 +3,49 @@ import matplotlib.pyplot as plt
 import math
 from scipy import ndimage
 from scipy import signal
+from scipy.optimize import minimize
 from skimage import restoration
+
+def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, apMeasPreProcessType, apDiameter, apStep):
+    #load the .dat file and store aperture data in a 2D numpy array.
+    #Then split the 2D array into two 1D arrays, one to store the i_pin readings.
+    #and one to store the aperture positions.
+    #Do this for both the vertical and horizontal directions.
+    apertureX = np.loadtxt(beamApMeasXFilename,skiprows=7)
+    apertureXPosition = apertureX[:,0]
+    apertureXMeasurement = apertureX[:,1]
+
+    apertureY = np.loadtxt(beamApMeasYFilename,skiprows=7)
+    apertureYPosition = apertureY[:,0]
+    apertureYMeasurement = apertureY[:,1]
+
+    #Apply preprocessing to the aperture measurements
+    apertureXMeasurement = apMeasPreProcessManip(apertureXMeasurement,apMeasPreProcessType)
+    apertureYMeasurement = apMeasPreProcessManip(apertureYMeasurement,apMeasPreProcessType)
+
+    #Create temporary 2D beam arrays using both row and column wise scaling
+    tempBeamArrayX = beamScalingRowWise(apertureYMeasurement,apertureXMeasurement)
+    tempBeamArrayY = beamScalingColWise(apertureYMeasurement,apertureXMeasurement)
+
+    #Take an average of the two temporary beam arrays to get a single convolved beam array
+    convolvedBeamArray = (tempBeamArrayX + tempBeamArrayY) / 2
+
+    #Create the aperture Point Spread Function.
+    aperturePSF = createAperturePSF(apDiameter,apStep)
+
+    #Deconvolve the beam image
+    blurredBeamTuple = restoration.unsupervised_wiener(convolvedBeamArray, aperturePSF)
+    blurredBeamArray = blurredBeamTuple[0]     #Get beam array
+
+    initialBeamNoiseGuess = 1
+    res = minimize(lambda beamNoise: deblurBeamObjectiveFunction(beamNoise,blurredBeamArray,aperturePSF,
+                                                                apertureXMeasurement,apertureYMeasurement),
+                   initialBeamNoiseGuess, method='nelder-mead', options={'xtol': 1e-8, 'disp': True})
+
+    #Deblur the image
+    deconvolvedBeamArray = signal.wiener(blurredBeamArray,aperturePSF.shape,res.x[0])
+
+    return deconvolvedBeamArray
 
 def apMeasPreProcessManip(apMeas,processType):
     """Function that applies some processing to the aperture measurements
@@ -153,8 +195,10 @@ def simulateApertureScans(beamArray,psf):
                             beam intensity.
 
     OUTPUTS:
-
-
+        simApScanX        -1D numpy array of floats containing i_pin readings from the simulated
+                            aperture scan in the horizontal direction.
+        simApScanY        -1D numpy array of floats containing i_pin readings from the simulated
+                            aperture scan in the vertical direction.
     """
 
     #Calculate total number of elements to be added in each dimension of beam matrix
@@ -198,66 +242,42 @@ def simulateApertureScans(beamArray,psf):
                 b = j - matrixBuffer / 2
                 simApScanY[row - matrixBuffer] += bufferedBeamMatrix[row + a, apScanCol + b] * psf[i,j]
 
-    return(simApScanX, simApScanY)
+    return simApScanX, simApScanY
+
+def rootMeanSquaredDeviation(xPredicted,xMeasured):
+    """Find the root mean squared deviation between two 1D numpy arrays.
+        Note: both arrays must be the same size.
+
+    INPUTS:
+        xPredicted        -1D numpy array of floats. These are the predicted values
+        xMeasured         -1D numpy array of floats. These are the measured values
+
+    OUTPUTS:
+        rmsd              -A scalar float value representing the root mean squared deviation
+    """
+    rmsd = np.sqrt(np.sum(np.square(xPredicted - xMeasured)))
+
+    return rmsd
 
 
-############ Input Variables ###########
-beamApMeasXFilename = "20141216/20141216_Beam_profile_x_sma_ap.dat" #location of horizontal i_pin readings .dat file
-beamApMeasYFilename = "20141216/20141216_Beam_profile_y_sma_ap.dat" #location of vertical i_pin readings .dat file
-apMeasPreProcessType = "None"     #Processing type
-apDiameter = 10     #Aperture diameter
-apStep = 2         #Aperture step
+def deblurBeamObjectiveFunction(noiseRatio,beamArray,psf,actualApMeasurementX,actualApMeasurementY):
+    #Deblur the image
+    deconvolvedBeamArray = signal.wiener(beamArray,psf.shape,noiseRatio)
 
-#load the .dat file and store aperture data in a 2D numpy array.
-#Then split the 2D array into two 1D arrays, one to store the i_pin readings.
-#and one to store the aperture positions.
-#Do this for both the vertical and horizontal directions.
-apertureX = np.loadtxt(beamApMeasXFilename,skiprows=7)
-apertureXPosition = apertureX[:,0]
-apertureXMeasurement = apertureX[:,1]
+    #simulate the aperture scans
+    simulatedApMeasurementsX,simulatedApMeasurementsY = simulateApertureScans(deconvolvedBeamArray,psf)
 
-apertureY = np.loadtxt(beamApMeasYFilename,skiprows=7)
-apertureYPosition = apertureY[:,0]
-apertureYMeasurement = apertureY[:,1]
+    #Calculate the root mean squared deviations (rmsd)
+    rmsdX = rootMeanSquaredDeviation(simulatedApMeasurementsX, actualApMeasurementX[0:-1])
+    rmsdY = rootMeanSquaredDeviation(simulatedApMeasurementsY, actualApMeasurementY)
 
-#Apply preprocessing to the aperture measurements
-apertureXMeasurement = apMeasPreProcessManip(apertureXMeasurement,apMeasPreProcessType)
-apertureYMeasurement = apMeasPreProcessManip(apertureYMeasurement,apMeasPreProcessType)
+    #Add the rmsds
+    totalRMSD = rmsdX + rmsdY
 
-#Create temporary 2D beam arrays using both row and column wise scaling
-tempBeamArrayX = beamScalingRowWise(apertureYMeasurement,apertureXMeasurement)
-tempBeamArrayY = beamScalingColWise(apertureYMeasurement,apertureXMeasurement)
+    return totalRMSD
 
-#Take an average of the two temporary beam arrays to get a single convolved beam array
-convolvedBeamArray = (tempBeamArrayX + tempBeamArrayY) / 2
-
-plt.figure(1)
-plt.imshow(convolvedBeamArray,cmap='jet')
-#plt.colorbar()
-plt.show()
-
-#Create the aperture Point Spread Function.
-aperturePSF = createAperturePSF(apDiameter,apStep)
-
-#Deconvolve the beam image
-blurredBeamTuple = restoration.unsupervised_wiener(convolvedBeamArray, aperturePSF)
-blurredBeamArray = blurredBeamTuple[0]     #Get beam array
-plt.figure(2)
-plt.imshow(blurredBeamArray,cmap='jet')
-#plt.colorbar()
-plt.show()
-
-#Deblur the image
-deconvolved = signal.wiener(blurredBeamArray,aperturePSF.shape,20)
-
-a = simulateApertureScans(beamArray,psf)
-
-plt.figure(3)
-plt.plot(apertureYPosition,apertureYMeasurement,'ro')
-plt.plot(apertureYPosition,simApScanY,'b-')
-plt.show()
-
-plt.figure(4)
-plt.plot(apertureXPosition,apertureXMeasurement,'ro')
-plt.plot(apertureXPosition[0:-beamArrayCrop],simApScanX,'b-')
-plt.show()
+beam = generateBeamFromApMeas("20141216/20141216_Beam_profile_x_sma_ap.dat",
+                             "20141216/20141216_Beam_profile_y_sma_ap.dat",
+                              "None",
+                              10,
+                              2)
