@@ -310,6 +310,7 @@ def deblurBeamObjectiveFunction(noiseRatio,beamArray,psf,actualApMeasurementX,ac
 
     return totalRMSD
 
+########## Main program
 beam = generateBeamFromApMeas("20141216/20141216_Beam_profile_x_sma_ap.dat",
                              "20141216/20141216_Beam_profile_y_sma_ap.dat",
                               "threshold",
