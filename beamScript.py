@@ -28,13 +28,18 @@ def apMeasPreProcessManip(apMeas,processType):
         apMeas         - A 1D numpy array of floats containing the processed i_pin readings
     """
     if processType == "positive":
+        print 'Preprocessing type used on the i_pin measurements: "{}" '.format(processType)
         apMeas = apMeas[apMeas >= 0]     #Only use non-negative values (NOT RECOMMENDED)
     elif processType == "shift":
+        print 'Preprocessing type used on the i_pin measurements: "{}" '.format(processType)
         minValue = apMeas.min()         #Find minimum value
         if minValue < 0:
             apMeas = math.fabs(minValue) + apMeas     #If minimum value is negative then shift all the values up so they are positive
     elif processType == "threshold":
+        print 'Preprocessing type used on the i_pin measurements: "{}" '.format(processType)
         apMeas[apMeas < 0] = 0         #Set negative values to zero
+    else:
+        print 'No preprocessing has been performed on the i_pin measurements.'
     return apMeas
 
 def beamScalingRowWise(rows,cols):
