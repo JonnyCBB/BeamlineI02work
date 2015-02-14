@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 from scipy import ndimage
+from scipy import signal
+from skimage import restoration
 
 def apMeasPreProcessManip(apMeas,processType):
     """Function that applies some processing to the aperture measurements
@@ -137,6 +139,8 @@ def createAperturePSF(apertureDiameter,apertureStep):
             if booleanMatrix[i,j] == True:
                 psf[i,j] = 1
 
+    return psf     #Return the point spread function
+
 ############ Input Variables ###########
 beamApMeasXFilename = "20141216/20141216_Beam_profile_x_sma_ap.dat" #location of horizontal i_pin readings .dat file
 beamApMeasYFilename = "20141216/20141216_Beam_profile_y_sma_ap.dat" #location of vertical i_pin readings .dat file
@@ -167,7 +171,22 @@ tempBeamArrayY = beamScalingColWise(apertureYMeasurement,apertureXMeasurement)
 #Take an average of the two temporary beam arrays to get a single convolved beam array
 convolvedBeamArray = (tempBeamArrayX + tempBeamArrayY) / 2
 
+plt.figure(1)
 plt.imshow(convolvedBeamArray,cmap='jet')
+plt.colorbar()
+plt.show()
 
 #Create the aperture Point Spread Function.
 aperturePSF = createAperturePSF(apDiameter,apStep)
+
+#Deconvolve the beam image
+blurredBeamTuple = restoration.unsupervised_wiener(convolvedBeamArray, aperturePSF)
+blurredBeamArray = blurredBeamTuple[0]     #Get beam array
+plt.figure(2)
+plt.imshow(blurredBeamArray,cmap='jet')
+plt.colorbar()
+plt.show()
+
+#Deblur the image
+deconvolved = signal.wiener(blurredBeamArray,aperturePSF.shape,20)
+
