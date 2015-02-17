@@ -8,8 +8,9 @@ from skimage import restoration
 
 class Beam():
 
-    def __init__(self, beamApMeasXFile, beamApMeasYFile, beamProcessingType, apertureDiameter, apertureStep):
-        beamArray = generateBeamFromApMeas(beamApMeasXFile,beamApMeasYFile,beamProcessingType,apertureDiameter,apertureStep)
+    def __init__(self, beamApMeasXFile, beamApMeasYFile, beamProcessingType, apertureDiameter, apertureStep, pgmFileName):
+        self.beamArray = generateBeamFromApMeas(beamApMeasXFile,beamApMeasYFile,beamProcessingType,apertureDiameter,apertureStep)
+        self.pgmFileName = writePGMFile(self.beamArray,pgmFileName)
 
 def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep):
     """Create a beam array from aperture scan measurements
@@ -69,7 +70,8 @@ def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostPro
 
     #Transform all values so they lie between 0 and 255
     scalingValue = 255 / processedBeamArray.max()
-    beamArray = np.around(processedBeamArray * scalingValue)
+    arrayAsFloats = np.around(processedBeamArray * scalingValue)
+    beamArray = arrayAsFloats.astype(int)
 
     return beamArray
 
@@ -315,21 +317,22 @@ def deblurBeamObjectiveFunction(noiseRatio,beamArray,psf,actualApMeasurementX,ac
 
     return totalRMSD
 
-def writePGMFile(beamArray,pgmFileName):
+def writePGMFile(beamArray,fileName):
     """Function that writes a plain text PGM file to the specified location.
     Note: The magic number at the header of the file gives the type of PGM.
     In this case the magic number is P2.
 
     INPUTS:
-        beamArray     -A 2D numpy array of integer values as a spatially resolved representation
-                        of relative intensities. The values should be between 0 and 255 to be
-                        compatible with the .pgm file format.
-        pgmFileName   -Name (and location if the full file path is given) of the PGM to be created
-                        from the beam array.
+        beamArray         -A 2D numpy array of integer values as a spatially resolved representation
+                            of relative intensities. The values should be between 0 and 255 to be
+                            compatible with the .pgm file format.
+        fileName          -Name (and location if the full file path is given) of the PGM to be created
+                            from the beam array.
 
     OUTPUTS:
-        N/A           -No explicit return value is given but a pgm file is output at the location
-                        specified by the user.
+        fileName          -The location of the pgm file specified by the user.
+
+        Note: the other output is the actual pgm file.
     """
     #Create header lines for the pgm file
     magicNumberLine = "P2\n"
@@ -338,10 +341,10 @@ def writePGMFile(beamArray,pgmFileName):
     maxPixelValue = 255     #Get max value of array
 
     #Print informative string
-    print "Writing a PGM file: \"" + pgmFileName + "\" to current directory..."
+    print "Writing a PGM file: \"" + fileName + "\" to current directory..."
 
     #Open a pgm file for writing
-    with open(pgmFileName,"w") as pgmFile:
+    with open(fileName,"w") as pgmFile:
         #Write header lines to pgm file
         pgmFile.write(magicNumberLine)
         pgmFile.write(commentLine)
@@ -353,3 +356,5 @@ def writePGMFile(beamArray,pgmFileName):
                 pgmFile.write(str(beamArray[row,col]) + "\n")
 
     print "Finished writing PGM file."
+
+    return fileName

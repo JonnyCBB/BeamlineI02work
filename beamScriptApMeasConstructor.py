@@ -64,7 +64,8 @@ def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostPro
 
     #Transform all values so they lie between 0 and 255
     scalingValue = 255 / processedBeamArray.max()
-    beamArray = np.around(processedBeamArray * scalingValue)
+    arrayAsFloats = np.around(processedBeamArray * scalingValue)
+    beamArray = arrayAsFloats.astype(int)
 
     return beamArray
 
