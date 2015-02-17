@@ -314,3 +314,42 @@ def deblurBeamObjectiveFunction(noiseRatio,beamArray,psf,actualApMeasurementX,ac
     totalRMSD = rmsdX + rmsdY
 
     return totalRMSD
+
+def writePGMFile(beamArray,pgmFileName):
+    """Function that writes a plain text PGM file to the specified location.
+    Note: The magic number at the header of the file gives the type of PGM.
+    In this case the magic number is P2.
+
+    INPUTS:
+        beamArray     -A 2D numpy array of integer values as a spatially resolved representation
+                        of relative intensities. The values should be between 0 and 255 to be
+                        compatible with the .pgm file format.
+        pgmFileName   -Name (and location if the full file path is given) of the PGM to be created
+                        from the beam array.
+
+    OUTPUTS:
+        N/A           -No explicit return value is given but a pgm file is output at the location
+                        specified by the user.
+    """
+    #Create header lines for the pgm file
+    magicNumberLine = "P2\n"
+    commentLine = "# CREATOR: Diamond Light Source Beamline I02\n"
+    arrayHeight, arrayWidth = beamArray.shape     #Get array dimensions
+    maxPixelValue = 255     #Get max value of array
+
+    #Print informative string
+    print "Writing a PGM file: \"" + pgmFileName + "\" to current directory..."
+
+    #Open a pgm file for writing
+    with open(pgmFileName,"w") as pgmFile:
+        #Write header lines to pgm file
+        pgmFile.write(magicNumberLine)
+        pgmFile.write(commentLine)
+        pgmFile.write(str(arrayWidth) + " " + str(arrayHeight) + "\n")
+        pgmFile.write(str(maxPixelValue) + "\n")
+        #Loop through the beam array and insert each element value into the pgm file.
+        for row in xrange(0,arrayHeight):
+            for col in xrange(0,arrayWidth):
+                pgmFile.write(str(beamArray[row,col]) + "\n")
+
+    print "Finished writing PGM file."
