@@ -48,11 +48,29 @@ def generateBeamArrayFromPGM(pgmImageFile):
             beamArray[row,col] = beamList[beamListCounter]
             beamListCounter += 1
 
+    print "Successful: Beam has been generated."
+
     return beamArray     #Return the beam array.
 
 ############## Main script
-pgmBeam = generateBeamArrayFromPGM('jonny.pgm')
+beam = generateBeamArrayFromPGM('jonny.pgm')
 
 ############## Write function to write a pgm file
+pgmFileName = "jonny_test.pgm"
 magicNumberLine = "P2\n"
-commentLine = "# CREATOR: Diamond Light Source Beamline I02 "
+commentLine = "# CREATOR: Diamond Light Source Beamline I02\n"
+arrayHeight, arrayWidth = beam.shape     #Get array dimensions
+maxPixelValue = 255     #Get max value of array
+
+print "Writing a PGM file: \"" + pgmFileName + "\" to current directory..."
+
+with open(pgmFileName,"w") as pgmFile:
+    pgmFile.write(magicNumberLine)
+    pgmFile.write(commentLine)
+    pgmFile.write(str(arrayWidth) + " " + str(arrayHeight) + "\n")
+    pgmFile.write(str(maxPixelValue) + "\n")
+    for row in xrange(0,arrayHeight):
+        for col in xrange(0,arrayWidth):
+            pgmFile.write(str(beam[row,col]) + "\n")
+
+print "Finished writing PGM file."
