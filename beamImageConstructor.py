@@ -66,5 +66,47 @@ def scaleArray(array):
     scaledArray = scaledArrayAsFloats.astype(int)
     return scaledArray
 
-########## Main script
-beam2 = generateBeamFromPNG('beam_z20_g1_e70_s100_60_t100.png', 0.3, 0.6, 0.1)
+def parseBeamImageFilename(imageFilename):
+    """Parse the image file name to get the information about the camera settings used to capture the image
+
+    INPUTS:
+        imageFilename         -String pointing to the png image file.
+
+    OUTPUTS:
+        (Tuple of values)     -The output is a tuple of values giving various camera settings set during
+                                image capture. These are:
+                                zoom
+                                gain
+                                exposureTime
+                                transmission
+                                slits
+    """
+
+    splitFilename = imageFilename.split("_")     #Split the filename by underscores
+    slits = np.zeros(2, dtype=np.float)          #Preallocate array to store the slit dimensions
+    #Loop through each split entry of the filename
+    for entry in splitFilename:
+        if entry != "beam":     #ignore the "beam" entry
+            if ".png" in entry:             #check if the entry contains the file extension. If so then remove it.
+                splitEntry = entry.split(".")
+                entry = splitEntry[0]
+            if entry.isdigit():             #check if the entry only contains numbers. If so then it's the vertical slit distance
+                slits[1] = float(entry)
+            else:                           #else check the different camera settings and assign them to the correct variable.
+                firstLetter = entry[0]
+                if firstLetter == 'z':
+                    zoom = float(entry[1:])
+                elif firstLetter == 'g':
+                    gain = float(entry[1:])
+                elif firstLetter == 'e':
+                    exposureTime = float(entry[1:])
+                elif firstLetter == 't':
+                    transmission = float(entry[1:])
+                elif firstLetter == 's':
+                    slits[0] = float(entry[1:])
+
+    return(zoom,gain,exposureTime,transmission,slits)     #Return tuple
+
+############# Main script
+beamFromPNG = generateBeamFromPNG('beam_z20_g1_e70_s100_60_t100.png', 0.3, 0.6, 0.1)
+camera = parseBeamImageFilename('beam_z20_g1_e70_s100_60_t100.png')
