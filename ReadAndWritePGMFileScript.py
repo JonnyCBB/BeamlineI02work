@@ -10,6 +10,9 @@ def generateBeamArrayFromPGM(pgmImageFile):
         beamArray        -2D numpy array of ints representing a spatial relative intensity distribution.
     """
 
+    #Print an informative string to the console.
+    print "Generating a 2D array from file: \"" + pgmImageFile + "\""
+
     #Local function variables
     maxValueLine = False     #boolean variable to determine if the line corresponding to the max pixel value has been reached
     pixelCounter = 0     #variable to count the number of pixel values
@@ -49,3 +52,7 @@ def generateBeamArrayFromPGM(pgmImageFile):
 
 ############## Main script
 pgmBeam = generateBeamArrayFromPGM('jonny.pgm')
+
+############## Write function to write a pgm file
+
+
