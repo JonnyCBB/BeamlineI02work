@@ -1,6 +1,6 @@
 import numpy as np
 
-def generateBeamArrayFromPGM(pgmImageFile):
+def generateBeamFromPGM(pgmImageFile):
     """Function that generates a beam array from a PGM file
 
     INPUTS:
