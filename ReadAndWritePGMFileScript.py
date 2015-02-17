@@ -54,5 +54,5 @@ def generateBeamArrayFromPGM(pgmImageFile):
 pgmBeam = generateBeamArrayFromPGM('jonny.pgm')
 
 ############## Write function to write a pgm file
-
-
+magicNumberLine = "P2\n"
+commentLine = "# CREATOR: Diamond Light Source Beamline I02 "
