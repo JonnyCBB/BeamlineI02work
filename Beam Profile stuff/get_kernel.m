@@ -36,7 +36,7 @@ arbitrary_distance_matrix = bwdist(kernel);
 %by 2 to get the real distance
 distance_matrix = 2*arbitrary_distance_matrix;
 
-[row_index col_index] = find(distance_matrix <= aperture_radius);
+[row_index, col_index] = find(distance_matrix <= aperture_radius);
 
 %% Now we have the indices of all of the elements within the aperture area we set those values to 1
 
