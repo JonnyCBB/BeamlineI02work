@@ -317,3 +317,5 @@ beam = generateBeamFromApMeas("20141216/20141216_Beam_profile_x_sma_ap.dat",
                               "threshold",
                               10,
                               2)
+plt.imshow(beam,cmap='gray')
+plt.show()

@@ -95,6 +95,6 @@ def writePGMFile(beamArray,fileName):
     return fileName
 
 ############## Main script
-beamArray = generateBeamArrayFromPGM('jonny.pgm')
+beamArray = generateBeamFromPGM('jonny.pgm')
 pgmFileName = "jonny_test.pgm"
 beamPGMfile = writePGMFile(beamArray,pgmFileName)
