@@ -58,6 +58,8 @@ class Beam():
                                         direction.
             beamPostProcessingType  -string giving the type of processing that should be carried out on the beam
                                         array once the deconvolution has taken place.
+                                        Type "?BeamModule.beamPostProcessManip" for more details about how this parameter
+                                        is used
             apDiameter              -The diameter of the aperture in microns
             apStep                  -The incremental position at which consecutive i_pin readings
                                         are taken (in microns).
