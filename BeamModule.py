@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 import math
 from scipy import ndimage
 from scipy import signal
@@ -8,9 +9,40 @@ from skimage import restoration
 
 class Beam():
 
-    def __init__(self, beamApMeasXFile, beamApMeasYFile, beamProcessingType, apertureDiameter, apertureStep, pgmFileName):
-        self.beamArray = generateBeamFromApMeas(beamApMeasXFile,beamApMeasYFile,beamProcessingType,apertureDiameter,apertureStep)
+    #Class Attributes
+    beamFlux = 1e12 #photons per second. ###NEED TO CONFIRM THE REAL VALUE
+    beamEnergy = 12.66 #keV
+    beamPixelSize = [0.3027, 0.2995] #THIS SHOULDN'T BE A CLASS ATTRIBUTE
+    collimation =  [120, 60] #THIS SHOULDN'T BE A CLASS ATTRIBUTE
+
+    #Class constructor
+    def __init__(self, beamArray, beamFlux, beamEnergy, beamPixelSize, collimation, pgmFileName):
+        self.beamArray = beamArray
+        self.beamFlux = beamFlux
+        self.beamEnergy = beamEnergy
+        self.beamPixelSize = beamPixelSize
+        self.collimation = collimation
         self.pgmFileName = writePGMFile(self.beamArray,pgmFileName)
+
+    #Note that class methods can access class attributes but not instance
+    #attributes.
+    @classmethod
+    def initialiseBeamFromApMeas(cls, beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep, pgmFile):
+        beamArray = generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep)
+        beamFromApMeas = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, cls.collimation, pgmFile)
+        return beamFromApMeas
+
+    @classmethod
+    def initialiseBeamFromPNG(cls, pngImage, redWeightValue, greenWeightValue, blueWeightValue, pgmFile):
+        beamArray = generateBeamFromPNG(pngImage, redWeightValue, greenWeightValue, blueWeightValue)
+        beamFromPNG = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, cls.collimation, pgmFile)
+        return beamFromPNG
+
+    @classmethod
+    def initialiseBeamFromPGM(cls, pgmImageFile):
+        beamArray = generateBeamFromPGM(pngImage)
+        beamFromPGM = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, cls.collimation, pgmImageFile)
+        return beamFromPGM
 
 def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep):
     """Create a beam array from aperture scan measurements
@@ -68,12 +100,85 @@ def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostPro
     #Apply post processing on the beam array
     processedBeamArray = beamPostProcessManip(deconvolvedBeamArray,beamPostProcessingType)
 
-    #Transform all values so they lie between 0 and 255
-    scalingValue = 255 / processedBeamArray.max()
-    arrayAsFloats = np.around(processedBeamArray * scalingValue)
-    beamArray = arrayAsFloats.astype(int)
+    #Scale the beam array
+    beamArray = scaleArray(processedBeamArray)
 
     return beamArray
+
+def generateBeamFromPNG(pngImage, redWeightValue, greenWeightValue, blueWeightValue):
+    """Function that generates a beam array from a PNG file.
+
+    INPUTS:
+        pngImage           -The path to a png file that contains an image of an X-ray beam as a string.
+        redWeightValue     -A scalar (float) value giving the weight of the red pixels in the png image
+                            for the conversion to grayscale.
+        greenWeightValue   -A scalar (float) value giving the weight of the green pixels in the png image
+                            for the conversion to grayscale.
+        blueWeightValue    -A scalar (float) value giving the weight of the blue pixels in the png image
+                            for the conversion to grayscale.
+
+    OUTPUTS:
+        beamArray          -A 2D numpy array of integer values as a spatially resolved representation
+                            of relative intensities. The values should be between 0 and 255 to be
+                            compatible with the .pgm file format.
+    """
+
+    rgbBeamImage = mpimg.imread(pngImage)     #read the png file
+    grayscaleBeamImage = rgb2Grayscale(rgbBeamImage, redWeightValue, greenWeightValue, blueWeightValue)     #convert from rgb values to grayscale
+    beamArray = scaleArray(grayscaleBeamImage)     #scale the array whilst converting floats to integer values
+    return beamArray     #return beam array
+
+def generateBeamFromPGM(pgmImageFile):
+    """Function that generates a beam array from a PGM file
+
+    INPUTS:
+        pgmImageFile     -A string giving the location of the pgm file containing the beam image
+
+    OUTPUTS:
+        beamArray        -2D numpy array of ints representing a spatial relative intensity distribution.
+    """
+
+    #Print an informative string to the console.
+    print "Generating a 2D array from file: \"" + pgmImageFile + "\""
+
+    #Local function variables
+    maxValueLine = False     #boolean variable to determine if the line corresponding to the max pixel value has been reached
+    pixelCounter = 0     #variable to count the number of pixel values
+    beamListCounter = 0     #variable to count the number pixel elements in the pixel value list
+
+    pgmfile = open(pgmImageFile,'r') #Open pgm file for reading
+
+    #Loop through each line in the pgm file
+    for line in pgmfile:
+        #If the line begins with a 'P' (magic number line) or a '#' (comment line) then do nothing. Else...
+        if (line[0] != 'P' and line[0] != '#'):
+            #If the line has two values then these represent the pixel width and height
+            if len(line.split()) == 2:
+                beamArrayWidth = int(line.split()[0])     #extract the width
+                beamArrayHeight = int(line.split()[1])     #extract the height
+                beamList = np.zeros(beamArrayWidth * beamArrayHeight)     #calculate the total number of pixel values and preallocate an array to store them
+                maxValueLine = True     #The next line is the max value line which we can ignore
+            elif maxValueLine == True:     #If the current line is the max value line...
+                maxValueLine = False    #...then ignore it but set the max value line checker to false for the subsequent lines
+            else:
+                #The rest of the lines represent pixel values so we want to store these
+                beamList[pixelCounter] = int(line)
+                pixelCounter += 1     #increment pixel counter
+
+    pgmfile.close()     #close the file
+
+    #preallocate the beam array
+    beamArray = np.zeros((beamArrayHeight,beamArrayWidth), dtype=np.int)
+
+    #Loop through each value in the beam array and insert the corresponding pixel value.
+    for row in xrange(0,beamArrayHeight):
+        for col in xrange(0,beamArrayWidth):
+            beamArray[row,col] = beamList[beamListCounter]
+            beamListCounter += 1
+
+    print "Successful: Beam has been generated."
+
+    return beamArray     #Return the beam array.
 
 def beamPostProcessManip(beamArray,processType):
     """Function that applies some processing to the aperture measurements
@@ -358,3 +463,85 @@ def writePGMFile(beamArray,fileName):
     print "Finished writing PGM file."
 
     return fileName
+
+def rgb2Grayscale(imageFile,redWeight,greenWeight,blueWeight):
+    """Function to convert rgb images to grayscale
+
+    INPUTS:
+        imageFile              -An N x M x 3 (3D) array of floats representing the RGB values of an image.
+        redWeight              -A scalar (float) value giving the weight of the red pixels in the png image
+                                for the conversion to grayscale.
+        greenWeight            -A scalar (float) value giving the weight of the green pixels in the png image
+                                for the conversion to grayscale.
+        blueWeight             -A scalar (float) value giving the weight of the blue pixels in the png image
+                                for the conversion to grayscale.
+
+    OUTPUTS:
+        grayscaleimage         -An N x M (2D) array of floats representing the weighted average grayscale values
+                                of the image.
+    """
+
+    #Extract the red, green and blues pixels from the image
+    redPixels, greenPixels, bluePixels = imageFile[:,:,0], imageFile[:,:,1], imageFile[:,:,2]
+    #Calculate the weighted average
+    grayscaleImage = (redWeight * redPixels) + (greenWeight * greenPixels) + (blueWeight * bluePixels)
+
+    return grayscaleImage     #return the grayscale image
+
+def scaleArray(array):
+    """ Function to scale the values of the array to range between 0 and 255.
+    This function also converts all values to integer values so it's compatible
+    with the pgm image file format.
+
+    INPUTS:
+        array           -A numpy array of floats/ints
+
+    OUTPUTS:
+        scaledArray     -A scaled version of the input array. Values in the array are
+                            converted to integers.
+    """
+    scalingValue = 255/array.max()
+    scaledArrayAsFloats = np.around(array * scalingValue)
+    scaledArray = scaledArrayAsFloats.astype(int)
+    return scaledArray
+
+def parseBeamImageFilename(imageFilename):
+    """Parse the image file name to get the information about the camera settings used to capture the image
+
+    INPUTS:
+        imageFilename         -String pointing to the png image file.
+
+    OUTPUTS:
+        (Tuple of values)     -The output is a tuple of values giving various camera settings set during
+                                image capture. These are:
+                                zoom
+                                gain
+                                exposureTime
+                                transmission
+                                slits
+    """
+
+    splitFilename = imageFilename.split("_")     #Split the filename by underscores
+    slits = np.zeros(2, dtype=np.float)          #Preallocate array to store the slit dimensions
+    #Loop through each split entry of the filename
+    for entry in splitFilename:
+        if entry != "beam":     #ignore the "beam" entry
+            if ".png" in entry:             #check if the entry contains the file extension. If so then remove it.
+                splitEntry = entry.split(".")
+                entry = splitEntry[0]
+            if entry.isdigit():             #check if the entry only contains numbers. If so then it's the vertical slit distance
+                slits[1] = float(entry)
+            else:                           #else check the different camera settings and assign them to the correct variable.
+                firstLetter = entry[0]
+                if firstLetter == 'z':
+                    zoom = float(entry[1:])
+                elif firstLetter == 'g':
+                    gain = float(entry[1:])
+                elif firstLetter == 'e':
+                    exposureTime = float(entry[1:])
+                elif firstLetter == 't':
+                    transmission = float(entry[1:])
+                elif firstLetter == 's':
+                    slits[0] = float(entry[1:])
+
+    return(zoom,gain,exposureTime,transmission,slits)     #Return tuple
