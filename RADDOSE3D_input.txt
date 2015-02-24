@@ -1,0 +1,3 @@
+CrystalDimensions 89 74 40Type CuboidAngleP 0AngleL 0PixelsPerMicron 0.5CoefCalc RDV3NumMonomers 24NumResidues 51ProteinHeavyAtoms Zn 2 S 6SolventHeavyConc P 425UnitCell 78.28 78.28 78.28SolventFraction 0.6436
+BeamType ExperimentalpgmFile hamburg_beam_for_RADDOSE_input.pgmPixelSize 0.336 0.310Flux 1.9e11Energy 12.7
+Wedge 0 10ExposureTime 10AngularResolution 0.1StartOffset 0.0 0.0TranslatePerDegree 0.0 0RotAxBeamOffset 0
