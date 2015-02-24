@@ -16,6 +16,21 @@ class Beam():
 
     #Class constructor
     def __init__(self, beamArray, beamFlux, beamEnergy, beamPixelSize, pgmFileName, cameraSettings):
+        """Beam object constructor
+
+        INPUTS:
+            beamArray           -A 2D numpy array of integer values as a spatially resolved representation
+                                    of relative intensities. The values should be between 0 and 255 to be
+                                    compatible with the .pgm file format.
+            beamFlux            -A scalar
+            beamEnergy          -A scalar
+            beamPixelSize       -A 2-element array, tuple or list
+            pgmFileName         -A string containing the name of the pgm file to point to for this particular beam instance.
+            cameraSettings      -A tuple containing the relevant camera settings for the beam instance created from an
+                                    image inc. zoom, gain, exposureTime, transmission, and slits (althought the slits aren't
+                                    explicity a camera setting, this information is also contained in the filename as with the
+                                    other camera settings).
+        """
         self.beamArray = beamArray
         self.beamFlux = beamFlux
         self.beamEnergy = beamEnergy
@@ -34,6 +49,25 @@ class Beam():
     #attributes.
     @classmethod
     def initialiseBeamFromApMeas(cls, beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep, outputPGMFileName):
+        """Create a beam object from aperture scan measurements
+
+        INPUTS:
+            beamApMeasXFilename     -string with the location of the aperture scan measurements in the horizontal (x)
+                                        direction.
+            beamApMeasYFilename     -string with the location of the aperture scan measurements in the vertical (y)
+                                        direction.
+            beamPostProcessingType  -string giving the type of processing that should be carried out on the beam
+                                        array once the deconvolution has taken place.
+            apDiameter              -The diameter of the aperture in microns
+            apStep                  -The incremental position at which consecutive i_pin readings
+                                        are taken (in microns).
+            outputPGMFileName       -A string containing the name of the pgm file that will be written during the actual
+                                        object initialisation.
+
+        OUTPUTS:
+            beamFromApMeas          -A beam object.
+        """
+
         print "****************************************************"
         print "Creating a beam object from aperture measurements..."
         print
@@ -45,6 +79,23 @@ class Beam():
 
     @classmethod
     def initialiseBeamFromPNG(cls, pngImage, redWeightValue, greenWeightValue, blueWeightValue, outputPGMFileName):
+        """Create a beam object from a PNG file.
+
+        INPUTS:
+            pngImage           -The path to a png file that contains an image of an X-ray beam as a string.
+            redWeightValue     -A scalar (float) value giving the weight of the red pixels in the png image
+                                for the conversion to grayscale.
+            greenWeightValue   -A scalar (float) value giving the weight of the green pixels in the png image
+                                for the conversion to grayscale.
+            blueWeightValue    -A scalar (float) value giving the weight of the blue pixels in the png image
+                                for the conversion to grayscale.
+            outputPGMFileName  -A string containing the name of the pgm file that will be written during the actual
+                                        object initialisation.
+
+        OUTPUTS:
+            beamFromApMeas     -A beam object.
+        """
+
         print "****************************************************"
         print "Creating a beam object from PNG image..."
         print
@@ -55,6 +106,17 @@ class Beam():
 
     @classmethod
     def initialiseBeamFromPGM(cls, pgmImageFile):
+        """Create a beam object from a PGM file
+
+        INPUTS:
+            pgmImageFile       -A string giving the location of the pgm file containing the beam image
+            outputPGMFileName  -A string containing the name of the pgm file that will be written during the actual
+                                        object initialisation.
+
+        OUTPUTS:
+            beamFromApMeas     -A beam object.
+        """
+
         print "****************************************************"
         print "Creating a beam object from PGM file..."
         print
@@ -65,6 +127,18 @@ class Beam():
         return beamFromPGM
 
     def formRADDOSE3DBeamInputString(self, pixelSize):
+        """Method that forms a string containing the Beam parameters that is
+        suitable to be transferred directly into a RADDOSE-3D input file.
+
+        INPUTS:
+            pixelSize       -A 2-element list, array or tuple, containing the horizontal and vertical values for the
+                                collimation.
+
+        OUTPUTS:
+            beamParameters  -A string containing the Beam block inforamtion formatted to be written directly into a
+                                RADDOSE-3D input file.
+        """
+        #Create strings for each of the lines required in the beam block of the RADDOSE-3D input file.
         beamLine        = "Beam"
         typeLine        = "Type ExperimentalPGM"
         fileLine        = "File {pgmFile}".format(pgmFile=self.pgmFileName)
@@ -72,9 +146,12 @@ class Beam():
         fluxLine        = "Flux {flux}".format(flux=self.beamFlux)
         energyLine      = "Energy {energy}".format(energy=self.beamEnergy)
         collimationLine = "Collimation Rectangular {vert} {horz}".format(horz=self.collimation[0], vert=self.collimation[1])
+
+        #Put all of the lines into one formatted string.
         beamParameters  = "{beam}\n{type}\n{file}\n{pixel}\n{flux}\n{energy}\n{collimation}\n".format(
         beam=beamLine, type=typeLine, file=fileLine, pixel=pixelLine, flux=fluxLine,
         energy=energyLine, collimation=collimationLine)
+
         return beamParameters
 
 def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep):
