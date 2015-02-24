@@ -13,36 +13,69 @@ class Beam():
     beamFlux = 1e12 #photons per second. ###NEED TO CONFIRM THE REAL VALUE
     beamEnergy = 12.66 #keV
     beamPixelSize = [0.3027, 0.2995] #THIS SHOULDN'T BE A CLASS ATTRIBUTE
-    collimation =  [120, 60] #THIS SHOULDN'T BE A CLASS ATTRIBUTE
 
     #Class constructor
-    def __init__(self, beamArray, beamFlux, beamEnergy, beamPixelSize, collimation, pgmFileName):
+    def __init__(self, beamArray, beamFlux, beamEnergy, beamPixelSize, pgmFileName, cameraSettings):
         self.beamArray = beamArray
         self.beamFlux = beamFlux
         self.beamEnergy = beamEnergy
         self.beamPixelSize = beamPixelSize
-        self.collimation = collimation
+        self.collimation = cameraSettings[4]
         self.pgmFileName = writePGMFile(self.beamArray,pgmFileName)
+        self.zoom = cameraSettings[0]
+        self.gain = cameraSettings[1]
+        self.exposureTime = cameraSettings[2]
+        self.transmission = cameraSettings[3]
+        print "SUCCESS :-) Beam has been successfully created"
+        print "****************************************************"
+        print
 
     #Note that class methods can access class attributes but not instance
     #attributes.
     @classmethod
-    def initialiseBeamFromApMeas(cls, beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep, pgmFile):
+    def initialiseBeamFromApMeas(cls, beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep, outputPGMFileName):
+        print "****************************************************"
+        print "Creating a beam object from aperture measurements..."
+        print
         beamArray = generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep)
-        beamFromApMeas = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, cls.collimation, pgmFile)
+        slits = np.zeros(2, dtype=np.float)
+        cameraSettings = (0,0,0,0,slits)
+        beamFromApMeas = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, outputPGMFileName, cameraSettings)
         return beamFromApMeas
 
     @classmethod
-    def initialiseBeamFromPNG(cls, pngImage, redWeightValue, greenWeightValue, blueWeightValue, pgmFile):
+    def initialiseBeamFromPNG(cls, pngImage, redWeightValue, greenWeightValue, blueWeightValue, outputPGMFileName):
+        print "****************************************************"
+        print "Creating a beam object from PNG image..."
+        print
         beamArray = generateBeamFromPNG(pngImage, redWeightValue, greenWeightValue, blueWeightValue)
-        beamFromPNG = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, cls.collimation, pgmFile)
+        cameraSettings = parseBeamImageFilename(pngImage)
+        beamFromPNG = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, outputPGMFileName, cameraSettings)
         return beamFromPNG
 
     @classmethod
     def initialiseBeamFromPGM(cls, pgmImageFile):
-        beamArray = generateBeamFromPGM(pngImage)
-        beamFromPGM = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, cls.collimation, pgmImageFile)
+        print "****************************************************"
+        print "Creating a beam object from PGM file..."
+        print
+        beamArray = generateBeamFromPGM(pgmImageFile)
+        slits = np.zeros(2, dtype=np.float)
+        cameraSettings = (0,0,0,0,slits)
+        beamFromPGM = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, pgmImageFile, cameraSettings)
         return beamFromPGM
+
+    def formRADDOSE3DBeamInputString(self, pixelSize):
+        beamLine        = "Beam"
+        typeLine        = "Type ExperimentalPGM"
+        fileLine        = "File {pgmFile}".format(pgmFile=self.pgmFileName)
+        pixelLine       = "PixelSize {horz} {vert}".format(horz=str(pixelSize[0]), vert=str(pixelSize[1]))
+        fluxLine        = "Flux {flux}".format(flux=self.beamFlux)
+        energyLine      = "Energy {energy}".format(energy=self.beamEnergy)
+        collimationLine = "Collimation Rectangular {vert} {horz}".format(horz=self.collimation[0], vert=self.collimation[1])
+        beamParameters  = "{beam}\n{type}\n{file}\n{pixel}\n{flux}\n{energy}\n{collimation}\n".format(
+        beam=beamLine, type=typeLine, file=fileLine, pixel=pixelLine, flux=fluxLine,
+        energy=energyLine, collimation=collimationLine)
+        return beamParameters
 
 def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep):
     """Create a beam array from aperture scan measurements
