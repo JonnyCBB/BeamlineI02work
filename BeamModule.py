@@ -128,6 +128,20 @@ class Beam():
         beamFromPGM = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, pgmImageFile, cameraSettings)
         return beamFromPGM
 
+    def findCentroid(array):
+        """Find centroid of a numpy array.
+
+        INPUTS:
+            array         -a 2D numpy array of floats. In this module this array represents the beam.
+
+        OUTPUTS:
+            xcen, ycen    -a 2 element tuple containing the x and y coordinates of the centroid of the array.
+        """
+        h, w = array.shape
+        ygrid, xgrid  = np.mgrid[0:h:1, 0:w:1]
+        xcen, ycen = xgrid[array == 255].mean(), ygrid[array == 255].mean()
+        return xcen, ycen
+
     def formRADDOSE3DBeamInputString(self, pixelSize):
         """Method that forms a string containing the Beam parameters that is
         suitable to be transferred directly into a RADDOSE-3D input file.
