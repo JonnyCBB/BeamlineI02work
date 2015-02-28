@@ -74,6 +74,8 @@ class Beam():
         print "Creating a beam object from aperture measurements..."
         print
         beamArray = generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep)
+        beamCentroid = findCentroid(beamArray)
+        beamArray = cropBeamArray(beamCentroid,beamArray)
         slits = np.zeros(2, dtype=np.float)
         cameraSettings = (0,0,0,0,slits)
         beamFromApMeas = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, outputPGMFileName, cameraSettings)
@@ -102,6 +104,8 @@ class Beam():
         print "Creating a beam object from PNG image..."
         print
         beamArray = generateBeamFromPNG(pngImage, redWeightValue, greenWeightValue, blueWeightValue)
+        beamCentroid = findCentroid(beamArray)
+        beamArray = cropBeamArray(beamCentroid,beamArray)
         cameraSettings = parseBeamImageFilename(pngImage)
         beamFromPNG = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, outputPGMFileName, cameraSettings)
         return beamFromPNG
@@ -123,24 +127,12 @@ class Beam():
         print "Creating a beam object from PGM file..."
         print
         beamArray = generateBeamFromPGM(pgmImageFile)
+        beamCentroid = findCentroid(beamArray)
+        beamArray = cropBeamArray(beamCentroid,beamArray)
         slits = np.zeros(2, dtype=np.float)
         cameraSettings = (0,0,0,0,slits)
         beamFromPGM = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, pgmImageFile, cameraSettings)
         return beamFromPGM
-
-    def findCentroid(array):
-        """Find centroid of a numpy array.
-
-        INPUTS:
-            array         -a 2D numpy array of floats. In this module this array represents the beam.
-
-        OUTPUTS:
-            xcen, ycen    -a 2 element tuple containing the x and y coordinates of the centroid of the array.
-        """
-        h, w = array.shape
-        ygrid, xgrid  = np.mgrid[0:h:1, 0:w:1]
-        xcen, ycen = xgrid[array == 255].mean(), ygrid[array == 255].mean()
-        return xcen, ycen
 
     def formRADDOSE3DBeamInputString(self, pixelSize):
         """Method that forms a string containing the Beam parameters that is
@@ -671,3 +663,57 @@ def parseBeamImageFilename(imageFilename):
                     slits[0] = float(entry[1:])
 
     return(zoom,gain,exposureTime,transmission,slits)     #Return tuple
+
+def findCentroid(array):
+    """Find centroid of a numpy array.
+
+    INPUTS:
+        array         -a 2D numpy array of floats. In this module this array represents the beam.
+
+    OUTPUTS:
+        xcen, ycen    -a 2 element tuple containing the x and y coordinates of the centroid of the array.
+    """
+    h, w = array.shape
+    ygrid, xgrid  = np.mgrid[0:h:1, 0:w:1]
+    xcen, ycen = xgrid[array == 255].mean(), ygrid[array == 255].mean()
+    return xcen, ycen
+
+def cropBeamArray(arrayElementCoordinates, array):
+    """Crop the beam array so that the given array element coordinates are central in the resulting beam
+    array.
+
+    INPUTS:
+        arrayElementCoordinates     -A tuple, list or array of floats corresponding to the pixel coordinates
+                                        which will be central in the resulting cropped image.
+        array                       -A 2D numpy array of floats corresponding to an array of the original beam.
+
+    OUTPUTS:
+        croppedArray                -A 2D numpy array of floats corresponding to a cropped array of the original
+                                        beam.
+
+    """
+    xCoord, yCoord = arrayElementCoordinates[0], arrayElementCoordinates[1]
+    arrayHeight, arrayWidth = array.shape
+
+    if arrayHeight/2.0 < yCoord:
+        leftIndex = math.floor(yCoord - arrayHeight/2.0)
+    else:
+        leftIndex = 0
+        rightIndex = math.ceil(2 * yCoord)
+
+    if arrayWidth/2.0 < xCoord:
+        topIndex = math.floor(xCoord - arrayWidth/2.0)
+    else:
+        topIndex = 0
+        bottomIndex = math.ceil(2 * xCoord)
+
+    if leftIndex != 0 and topIndex != 0:
+        croppedArray = array[leftIndex:,topIndex:]
+    elif leftIndex != 0:
+        croppedArray = array[leftIndex:,topIndex:bottomIndex]
+    elif topIndex != 0:
+        croppedArray = array[leftIndex:rightIndex,topIndex:]
+    else:
+        croppedArray = array[leftIndex:rightIndex,topIndex:bottomIndex]
+
+    return croppedArray
