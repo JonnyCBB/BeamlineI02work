@@ -1,0 +1,20 @@
+Crystal
+Type Cuboid
+Dimensions 100 80 60
+PixelsPerMicron 0.5
+CoefCalc exp
+pdb 4WUK
+SolventHeavyConc Na 0
+
+Beam
+Type ExperimentalPGM
+File beamtest.pgm
+PixelSize 0.3027 0.2995
+Flux 1e+12
+Energy 12.66
+Collimation Rectangular 0.0 0.0
+
+
+Wedge 0 360
+ExposureTime 360
+AngularResolution 1
