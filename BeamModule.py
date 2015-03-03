@@ -41,6 +41,7 @@ class Beam():
         self.gain = cameraSettings[1]
         self.exposureTime = cameraSettings[2]
         self.transmission = cameraSettings[3]
+        self.beamBlock = self.formRADDOSE3DBeamInputString(beamPixelSize)
         print "SUCCESS :-) Beam has been successfully created"
         print "****************************************************"
         print
@@ -77,6 +78,8 @@ class Beam():
         beamCentroid = findCentroid(beamArray)
         beamArray = cropBeamArray(beamCentroid,beamArray)
         slits = np.zeros(2, dtype=np.float)
+        slits[0] = 200
+        slit[1] = 200
         cameraSettings = (0,0,0,0,slits)
         beamFromApMeas = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, outputPGMFileName, cameraSettings)
         return beamFromApMeas
