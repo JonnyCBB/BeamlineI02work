@@ -5,8 +5,11 @@ import math
 from scipy import ndimage
 from scipy import signal
 from scipy.optimize import minimize
+from scipy.optimize import curve_fit
+from scipy import exp
 from skimage import restoration
 import RaddoseBeamRun
+
 
 class Beam():
 
@@ -57,7 +60,8 @@ class Beam():
     #Note that class methods can access class attributes but not instance
     #attributes.
     @classmethod
-    def initialiseBeamFromApMeas(cls, beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep, outputPGMFileName):
+    def initialiseBeamFromApMeas(cls, beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep, outputPGMFileName,
+                                fitGauss, deconvolve, deblur, Scaling):
         """Create a beam object from aperture scan measurements
 
         INPUTS:
@@ -82,7 +86,8 @@ class Beam():
         print "****************************************************"
         print "Creating a beam object from aperture measurements..."
         print
-        beamArray = generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep)
+        beamArray = generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep,
+                                          fitGauss, deconvolve, deblur, Scaling)
         print "Beam array has been generated."
         print "Now centering the beam array..."
         beamCentroid = findCentroid(beamArray)
@@ -179,7 +184,8 @@ class Beam():
 
         return beamParameters
 
-def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep):
+def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep,
+                          fitConvolvedGaussian, deconvole, deblurBeam, Scaling):
     """Create a beam array from aperture scan measurements
 
     INPUTS:
@@ -210,30 +216,74 @@ def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostPro
     apertureYPosition = apertureY[:,0]
     apertureYMeasurement = apertureY[:,1]
 
-    #Create temporary 2D beam arrays using both row and column wise scaling
-    tempBeamArrayX = beamScalingRowWise(apertureYMeasurement,apertureXMeasurement)
-    tempBeamArrayY = beamScalingColWise(apertureYMeasurement,apertureXMeasurement)
+    #If Gaussian fit is selected then fit a Gaussian profile to the beam.
+    if "gaussfitconv" in fitConvolvedGaussian:
+        meanGuessX = (apertureXPosition[-1] + apertureXPosition[0])/2.0
+        sigmaGuessX = 1
+        gaussFitXparams, pcovariance = curve_fit(gauss,apertureXPosition,apertureXMeasurement,
+                                           p0=[apertureXMeasurement.max(), meanGuessX, sigmaGuessX])
 
-    #Take an average of the two temporary beam arrays to get a single convolved beam array
-    convolvedBeamArray = (tempBeamArrayX + tempBeamArrayY) / 2
+        meanGuessY = (apertureYPosition[-1] + apertureYPosition[0])/2.0
+        sigmaGuessY = 1
+        gaussFitYparams, pcovariance = curve_fit(gauss,apertureYPosition,apertureYMeasurement,
+                                           p0=[apertureYMeasurement.max(), meanGuessY, sigmaGuessY])
 
-    #Create the aperture Point Spread Function.
-    aperturePSF = createAperturePSF(apDiameter,apStep)
+        A = max(apertureXMeasurement.max(), apertureYMeasurement.max())
 
-    #Deconvolve the beam image
-    blurredBeamTuple = restoration.unsupervised_wiener(convolvedBeamArray, aperturePSF)
-    blurredBeamArray = blurredBeamTuple[0]     #Get beam array
+        X, Y = np.meshgrid(apertureXPosition, apertureYPosition);
+        muX = gaussFitXparams[1]
+        muY = gaussFitYparams[1]
+        sigmaX = gaussFitXparams[2]
+        sigmaY = gaussFitYparams[2]
+        convolvedBeamArray = A * exp(-((X-muX)**2 / (2 * sigmaX**2) + (Y-muY)**2 / (2 * sigmaY**2)))
 
-    initialBeamNoiseGuess = 1
-    res = minimize(lambda beamNoise: deblurBeamObjectiveFunction(beamNoise,blurredBeamArray,aperturePSF,
-                                                                apertureXMeasurement,apertureYMeasurement),
-                   initialBeamNoiseGuess, method='nelder-mead', options={'xtol': 1e-8, 'disp': True})
+    #If the Gaussian fit wasn't selected then generate the beam by averaging the data.
+    else:
+        #Create temporary 2D beam arrays using both row and column wise scaling
+        tempBeamArrayX = beamScalingRowWise(apertureYMeasurement,apertureXMeasurement)
+        tempBeamArrayY = beamScalingColWise(apertureYMeasurement,apertureXMeasurement)
 
-    #Deblur the image
-    deconvolvedBeamArray = signal.wiener(blurredBeamArray,aperturePSF.shape,res.x[0])
+        #Take an average of the two temporary beam arrays to get a single convolved beam array
+        convolvedBeamArray = (tempBeamArrayX + tempBeamArrayY) / 2
+
+    if deconvole:
+        #Create the aperture Point Spread Function.
+        aperturePSF = createAperturePSF(apDiameter,apStep)
+
+        #Deconvolve the beam image
+        blurredBeamTuple = restoration.unsupervised_wiener(convolvedBeamArray, aperturePSF)
+        blurredBeamArray = blurredBeamTuple[0]     #Get beam array
+
+        if "weiner" in deblurBeam:
+
+            initialBeamNoiseGuess = 1
+            res = minimize(lambda beamNoise: deblurBeamObjectiveFunction(beamNoise,blurredBeamArray,aperturePSF,
+                                                                        apertureXMeasurement,apertureYMeasurement),
+                           initialBeamNoiseGuess, method='nelder-mead', options={'xtol': 1e-8, 'disp': True})
+
+            #Deblur the image
+            deconvolvedBeamArray = signal.wiener(blurredBeamArray,aperturePSF.shape,res.x[0])
+            deblurredBeamArray = deconvolvedBeamArray
+        elif "smoothgauss" in deblurBleam:
+            #####################################
+            ############SORT THIS OUT############
+            #####################################
+            deblurredBeamArray = blurredBeamArray
+        else:
+            deblurredBeamArray = blurredBeamArray
+
+        if "scale" in Scaling:
+            #####################################
+            ############SORT THIS OUT############
+            #####################################
+            resultingBeamArray = deblurredBeamArray
+        else:
+            resultingBeamArray = deblurredBeamArray
+    else:
+        resultingBeamArray = convolvedBeamArray
 
     #Apply post processing on the beam array
-    processedBeamArray = beamPostProcessManip(deconvolvedBeamArray,beamPostProcessingType)
+    processedBeamArray = beamPostProcessManip(resultingBeamArray,beamPostProcessingType)
 
     #Scale the beam array
     beamArray = scaleArray(processedBeamArray)
@@ -698,6 +748,8 @@ def findCentroid(array):
 def cropBeamArray(arrayElementCoordinates, array):
     """Crop the beam array so that the given array element coordinates are central in the resulting beam
     array.
+    Note: the leftIndex variable should have it's named swapped with topIndex and the same
+    goes for rightIncdex and bottomIndex but I just can't be bothered to be honest.
 
     INPUTS:
         arrayElementCoordinates     -A tuple, list or array of floats corresponding to the pixel coordinates
@@ -712,17 +764,25 @@ def cropBeamArray(arrayElementCoordinates, array):
     xCoord, yCoord = arrayElementCoordinates[0], arrayElementCoordinates[1]
     arrayHeight, arrayWidth = array.shape
 
-    if arrayHeight/2.0 < yCoord:
-        leftIndex = math.floor(yCoord - arrayHeight/2.0)
-    else:
+    if math.fabs(yCoord - arrayHeight/2.0) < 1:
         leftIndex = 0
-        rightIndex = math.ceil(2 * yCoord)
-
-    if arrayWidth/2.0 < xCoord:
-        topIndex = math.floor(xCoord - arrayWidth/2.0)
+        rightIndex = arrayHeight
     else:
+        if arrayHeight/2.0 < yCoord:
+            leftIndex = math.floor(yCoord - arrayHeight/2.0)
+        else:
+            leftIndex = 0
+            rightIndex = math.ceil(2 * yCoord)
+
+    if math.fabs(xCoord - arrayWidth/2.0) < 1:
         topIndex = 0
-        bottomIndex = math.ceil(2 * xCoord)
+        bottomIndex = arrayWidth
+    else:
+        if arrayWidth/2.0 < xCoord:
+            topIndex = math.floor(xCoord - arrayWidth/2.0)
+        else:
+            topIndex = 0
+            bottomIndex = math.ceil(2 * xCoord)
 
     if leftIndex != 0 and topIndex != 0:
         croppedArray = array[leftIndex:,topIndex:]
@@ -734,3 +794,6 @@ def cropBeamArray(arrayElementCoordinates, array):
         croppedArray = array[leftIndex:rightIndex,topIndex:bottomIndex]
 
     return croppedArray
+
+def gauss(x, a, mu, sigma):
+    return a * exp(-(x-mu)**2 / (2 * sigma**2))
