@@ -16,7 +16,7 @@ def findCentroid(array):
 beamFromAperture = BeamModule.Beam.initialiseBeamFromApMeas("20141216/20141216_Beam_profile_x_sma_ap.dat","20141216/20141216_Beam_profile_y_sma_ap.dat","threshold", 10, 2, "beamtest.pgm")
 beamFromPNGImage = BeamModule.Beam.initialiseBeamFromPNG("beam_z20_g1_e70_s100_60_t100.png",0.3,0.6,0.1,"anotherbeamtest.pgm")
 #beamFromPGM = BeamModule.Beam.initialiseBeamFromPGM("jonny.pgm")
-raddose = RaddoseBeamRun.RunRaddose(beamFromAperture,"testInput.txt")
+#raddose = RaddoseBeamRun.RunRaddose(beamFromAperture,"testInput.txt","Max")
 
 # xCen,yCen = findCentroid(beamFromPNGImage.beamArray)
 
@@ -51,18 +51,18 @@ raddose = RaddoseBeamRun.RunRaddose(beamFromAperture,"testInput.txt")
 # plt.figure(2)
 # plt.imshow(b,cmap='gray')
 
-a = filters.gaussian_filter(beamFromAperture.beamArray,1)
+# a = filters.gaussian_filter(beamFromAperture.beamArray,1)
 
-xmax,ymax = beamFromAperture.beamArray.shape
-x = np.linspace(0,ymax,ymax)
-y = np.linspace(0,xmax,xmax)
-X,Y = np.meshgrid(x,y)
+# xmax,ymax = beamFromAperture.beamArray.shape
+# x = np.linspace(0,ymax,ymax)
+# y = np.linspace(0,xmax,xmax)
+# X,Y = np.meshgrid(x,y)
 
-fig = plt.figure(figsize=(25,10))
-ax = fig.add_subplot(1, 2, 1, projection='3d')
-p = ax.plot_surface(X,Y,beamFromAperture.beamArray, rstride=1, cstride=1, cmap='seismic', linewidth=0, antialiased=False)
-cb = fig.colorbar(p, shrink=0.5)
+# fig = plt.figure(figsize=(25,10))
+# ax = fig.add_subplot(1, 2, 1, projection='3d')
+# p = ax.plot_surface(X,Y,beamFromAperture.beamArray, rstride=1, cstride=1, cmap='seismic', linewidth=0, antialiased=False)
+# cb = fig.colorbar(p, shrink=0.5)
 
-ax = fig.add_subplot(1, 2, 2, projection='3d')
-p = ax.plot_surface(X, Y, a, rstride=4, cstride=4, cmap='seismic', linewidth=0, antialiased=False)
-cb = fig.colorbar(p, shrink=0.5)
+# ax = fig.add_subplot(1, 2, 2, projection='3d')
+# p = ax.plot_surface(X, Y, a, rstride=4, cstride=4, cmap='seismic', linewidth=0, antialiased=False)
+# cb = fig.colorbar(p, shrink=0.5)

@@ -6,16 +6,18 @@ from scipy import ndimage
 from scipy import signal
 from scipy.optimize import minimize
 from skimage import restoration
+import RaddoseBeamRun
 
 class Beam():
 
     #Class Attributes
     beamFlux = 1e12 #photons per second. ###NEED TO CONFIRM THE REAL VALUE
     beamEnergy = 12.66 #keV
+    doseType = "DWD" #the dose type parsed from the RADDOSE-3D log file.
     beamPixelSize = [0.3027, 0.2995] #THIS SHOULDN'T BE A CLASS ATTRIBUTE
 
     #Class constructor
-    def __init__(self, beamArray, beamFlux, beamEnergy, beamPixelSize, pgmFileName, cameraSettings):
+    def __init__(self, beamArray, beamFlux, beamEnergy, beamPixelSize, pgmFileName, cameraSettings, doseType):
         """Beam object constructor
 
         INPUTS:
@@ -42,6 +44,12 @@ class Beam():
         self.exposureTime = cameraSettings[2]
         self.transmission = cameraSettings[3]
         self.beamBlock = self.formRADDOSE3DBeamInputString(beamPixelSize)
+
+        print "Running RADDOSE-3D to calculate the dose"
+        print "The dose type selected is: " + doseType
+        raddoseInfo = RaddoseBeamRun.RunRaddose(self.beamBlock,"testInput.txt",doseType)
+        print "Dose value has been obtained."
+        self.dose = raddoseInfo.dose
         print "SUCCESS :-) Beam has been successfully created"
         print "****************************************************"
         print
@@ -75,13 +83,16 @@ class Beam():
         print "Creating a beam object from aperture measurements..."
         print
         beamArray = generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep)
+        print "Beam array has been generated."
+        print "Now centering the beam array..."
         beamCentroid = findCentroid(beamArray)
         beamArray = cropBeamArray(beamCentroid,beamArray)
+        print "Beam centering successful."
         slits = np.zeros(2, dtype=np.float)
         slits[0] = 200
-        slit[1] = 200
+        slits[1] = 200
         cameraSettings = (0,0,0,0,slits)
-        beamFromApMeas = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, outputPGMFileName, cameraSettings)
+        beamFromApMeas = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, outputPGMFileName, cameraSettings, cls.doseType)
         return beamFromApMeas
 
     @classmethod
@@ -107,10 +118,13 @@ class Beam():
         print "Creating a beam object from PNG image..."
         print
         beamArray = generateBeamFromPNG(pngImage, redWeightValue, greenWeightValue, blueWeightValue)
+        print "Beam array has been generated."
+        print "Now centering the beam array..."
         beamCentroid = findCentroid(beamArray)
+        print "Beam centering successful."
         beamArray = cropBeamArray(beamCentroid,beamArray)
         cameraSettings = parseBeamImageFilename(pngImage)
-        beamFromPNG = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, outputPGMFileName, cameraSettings)
+        beamFromPNG = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, outputPGMFileName, cameraSettings, cls.doseType)
         return beamFromPNG
 
     @classmethod
@@ -134,7 +148,7 @@ class Beam():
         beamArray = cropBeamArray(beamCentroid,beamArray)
         slits = np.zeros(2, dtype=np.float)
         cameraSettings = (0,0,0,0,slits)
-        beamFromPGM = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, pgmImageFile, cameraSettings)
+        beamFromPGM = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, pgmImageFile, cameraSettings, cls.doseType)
         return beamFromPGM
 
     def formRADDOSE3DBeamInputString(self, pixelSize):
