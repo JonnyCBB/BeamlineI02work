@@ -62,7 +62,7 @@ class Beam():
     #attributes.
     @classmethod
     def initialiseBeamFromApMeas(cls, beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep, outputPGMFileName,
-                                fitGauss, deconvolve, deblur, Scaling):
+                                fitGauss, deconvolve, deblur):
         """Create a beam object from aperture scan measurements
 
         INPUTS:
@@ -88,7 +88,7 @@ class Beam():
         print "Creating a beam object from aperture measurements..."
         print
         beamArray = generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep,
-                                          fitGauss, deconvolve, deblur, Scaling)
+                                          fitGauss, deconvolve, deblur)
         print "Beam array has been generated."
         print "Now centering the beam array..."
         beamCentroid = findCentroid(beamArray)
@@ -117,7 +117,7 @@ class Beam():
                                         object initialisation.
 
         OUTPUTS:
-            beamFromApMeas     -A beam object.
+            beamFromPNG     -A beam object.
         """
 
         print "****************************************************"
@@ -143,7 +143,7 @@ class Beam():
                                         object initialisation.
 
         OUTPUTS:
-            beamFromApMeas     -A beam object.
+            beamFromPGM     -A beam object.
         """
 
         print "****************************************************"
@@ -186,7 +186,7 @@ class Beam():
         return beamParameters
 
 def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostProcessingType, apDiameter, apStep,
-                          fitConvolvedGaussian, deconvole, deblurBeam, Scaling):
+                          fitConvolvedGaussian, deconvole, deblurBeam):
     """Create a beam array from aperture scan measurements
 
     INPUTS:
@@ -277,12 +277,7 @@ def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostPro
         else:
             deblurredBeamArray = blurredBeamArray
 
-        #Check if we want to scale the beam array to the maximum measured iPin value
-        if "scaletoipin" in Scaling:
-            scalingValue = maxIpin/deblurredBeamArray.max()
-            resultingBeamArray = deblurredBeamArray * scalingValue
-        else:
-            resultingBeamArray = deblurredBeamArray
+        resultingBeamArray = deblurredBeamArray #Assign deblurred beam to another variable.
     else:
         resultingBeamArray = convolvedBeamArray
 
