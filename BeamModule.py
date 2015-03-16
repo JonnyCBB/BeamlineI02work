@@ -6,6 +6,7 @@ from scipy import ndimage
 from scipy import signal
 from scipy.optimize import minimize
 from scipy.optimize import curve_fit
+from scipy.optimize import leastsq
 from scipy import exp
 from skimage import restoration
 import RaddoseBeamRun
@@ -216,26 +217,30 @@ def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostPro
     apertureYPosition = apertureY[:,0]
     apertureYMeasurement = apertureY[:,1]
 
+    #Get maximum i_pin reading
+    maxIpin = max(apertureXMeasurement.max(), apertureYMeasurement.max())
+
     #If Gaussian fit is selected then fit a Gaussian profile to the beam.
     if "gaussfitconv" in fitConvolvedGaussian:
+        #Fit Gaussian to the x direction data
         meanGuessX = (apertureXPosition[-1] + apertureXPosition[0])/2.0
         sigmaGuessX = 1
         gaussFitXparams, pcovariance = curve_fit(gauss,apertureXPosition,apertureXMeasurement,
                                            p0=[apertureXMeasurement.max(), meanGuessX, sigmaGuessX])
 
+        #Fit Gaussian to the y direction data
         meanGuessY = (apertureYPosition[-1] + apertureYPosition[0])/2.0
         sigmaGuessY = 1
         gaussFitYparams, pcovariance = curve_fit(gauss,apertureYPosition,apertureYMeasurement,
                                            p0=[apertureYMeasurement.max(), meanGuessY, sigmaGuessY])
 
-        A = max(apertureXMeasurement.max(), apertureYMeasurement.max())
-
+        #Create a 2d Gaussian
         X, Y = np.meshgrid(apertureXPosition, apertureYPosition);
         muX = gaussFitXparams[1]
         muY = gaussFitYparams[1]
         sigmaX = gaussFitXparams[2]
         sigmaY = gaussFitYparams[2]
-        convolvedBeamArray = A * exp(-((X-muX)**2 / (2 * sigmaX**2) + (Y-muY)**2 / (2 * sigmaY**2)))
+        convolvedBeamArray = maxIpin * exp(-((X-muX)**2 / (2 * sigmaX**2) + (Y-muY)**2 / (2 * sigmaY**2)))
 
     #If the Gaussian fit wasn't selected then generate the beam by averaging the data.
     else:
@@ -254,8 +259,8 @@ def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostPro
         blurredBeamTuple = restoration.unsupervised_wiener(convolvedBeamArray, aperturePSF)
         blurredBeamArray = blurredBeamTuple[0]     #Get beam array
 
-        if "weiner" in deblurBeam:
-
+        if "smoothweiner" in deblurBeam:
+            #Deblur beam with a Weiner filter
             initialBeamNoiseGuess = 1
             res = minimize(lambda beamNoise: deblurBeamObjectiveFunction(beamNoise,blurredBeamArray,aperturePSF,
                                                                         apertureXMeasurement,apertureYMeasurement),
@@ -264,19 +269,18 @@ def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostPro
             #Deblur the image
             deconvolvedBeamArray = signal.wiener(blurredBeamArray,aperturePSF.shape,res.x[0])
             deblurredBeamArray = deconvolvedBeamArray
-        elif "smoothgauss" in deblurBleam:
-            #####################################
-            ############SORT THIS OUT############
-            #####################################
-            deblurredBeamArray = blurredBeamArray
+        elif "smoothgauss" in deblurBeam:
+            #Fit gaussian to the blurred beam array
+            params = fitgaussian(blurredBeamArray)
+            fit = gauss2d(*params)
+            deblurredBeamArray = fit(*np.indices(blurredBeamArray.shape))
         else:
             deblurredBeamArray = blurredBeamArray
 
-        if "scale" in Scaling:
-            #####################################
-            ############SORT THIS OUT############
-            #####################################
-            resultingBeamArray = deblurredBeamArray
+        #Check if we want to scale the beam array to the maximum measured iPin value
+        if "scaletoipin" in Scaling:
+            scalingValue = maxIpin/deblurredBeamArray.max()
+            resultingBeamArray = deblurredBeamArray * scalingValue
         else:
             resultingBeamArray = deblurredBeamArray
     else:
@@ -797,3 +801,32 @@ def cropBeamArray(arrayElementCoordinates, array):
 
 def gauss(x, a, mu, sigma):
     return a * exp(-(x-mu)**2 / (2 * sigma**2))
+
+def gauss2d(height, center_x, center_y, width_x, width_y):
+    """Returns a gaussian function with the given parameters"""
+    width_x = float(width_x)
+    width_y = float(width_y)
+    return lambda x,y: height*exp(-(((center_x-x)/width_x)**2+((center_y-y)/width_y)**2)/2)
+
+def moments(data):
+    """Returns (height, x, y, width_x, width_y)
+    the gaussian parameters of a 2D distribution by calculating its
+    moments """
+    total = data.sum()
+    X, Y = np.indices(data.shape)
+    x = (X*data).sum()/total
+    y = (Y*data).sum()/total
+    col = data[:, int(y)]
+    width_x = np.sqrt(abs((np.arange(col.size)-y)**2*col).sum()/col.sum())
+    row = data[int(x), :]
+    width_y = np.sqrt(abs((np.arange(row.size)-x)**2*row).sum()/row.sum())
+    height = data.max()
+    return height, x, y, width_x, width_y
+
+def fitgaussian(data):
+    """Returns (height, x, y, width_x, width_y)
+    the gaussian parameters of a 2D distribution found by a fit"""
+    params = moments(data)
+    errorfunction = lambda p: np.ravel(gauss2d(*p)(*np.indices(data.shape)) - data)
+    p, success = leastsq(errorfunction, params)
+    return p

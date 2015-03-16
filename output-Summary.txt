@@ -1,6 +1,6 @@
 Cuboid (Polyhedron) crystal of size [100, 80, 60] um [x, y, z] at a resolution of 2.00 microns per voxel edge.
 Simple DDM.
-Experimental beam profile taken from anotherbeamtest.pgm. Beam has 1.0e+12 photons per second at 12.66 keV.
+Experimental beam profile taken from beamtest.pgm. Beam has 1.0e+12 photons per second at 12.66 keV.
 Wedge 1:
 Collecting data for a total of 360.0s from phi = 0.0 to 360.0 deg.
 Crystal coefficients calculated with RADDOSE-3D. 
@@ -9,26 +9,26 @@ Attenuation Coefficient: 2.51e-04 /um.
 Elastic Coefficient: 1.88e-05 /um.
 Density: 1.16 g/ml.
 
-Average Diffraction Weighted Dose         : 5.201202 MGy
-Elastic Yield                             : 2.13e+11 photons
-Diffraction Efficiency (Elastic Yield/DWD): 4.10e+10 photons/MGy
-Average Dose (Whole Crystal)              : 8.780195 MGy
-Average Dose (Exposed Region)             : 8.780195 MGy
-Max Dose                                  : 19.047800 MGy
-Average Dose (95.0 % of total absorbed energy threshold (5.14 MGy)): 9.238045 MGy
-Dose Contrast (Max/Threshold Av.)         : 2.06
-Used Volume                               : 100.0%
-Absorbed Energy (this Wedge)              : 4.90e-03 J.
-Dose Inefficiency (Max Dose/mJ Absorbed)  : 3.9 1/g
+Average Diffraction Weighted Dose         : 116.995253 MGy
+Elastic Yield                             : 5.66e+11 photons
+Diffraction Efficiency (Elastic Yield/DWD): 4.84e+09 photons/MGy
+Average Dose (Whole Crystal)              : 23.290475 MGy
+Average Dose (Exposed Region)             : 54.822616 MGy
+Max Dose                                  : 2553.192881 MGy
+Average Dose (95.0 % of total absorbed energy threshold (19.32 MGy)): 89.833338 MGy
+Dose Contrast (Max/Threshold Av.)         : 28.42
+Used Volume                               : 42.5%
+Absorbed Energy (this Wedge)              : 1.30e-02 J.
+Dose Inefficiency (Max Dose/mJ Absorbed)  : 196.5 1/g
 Final Dose Histogram:
 Bin  1,  0.0 to  0.1 MGy:  0.0 % 
-Bin  2,  0.1 to  3.4 MGy:  0.1 % 
-Bin  3,  3.4 to  6.7 MGy: 36.5 % 
-Bin  4,  6.7 to 10.1 MGy: 34.4 % 
-Bin  5, 10.1 to 13.4 MGy: 15.5 % 
-Bin  6, 13.4 to 16.7 MGy:  8.9 % 
-Bin  7, 16.7 to 20.0 MGy:  4.6 % 
-Bin  8, 20.0 to 23.4 MGy:  0.0 % 
-Bin  9, 23.4 to 26.7 MGy:  0.0 % 
-Bin 10, 26.7 to 30.0 MGy:  0.0 % 
-Bin 11, 30.0 MGy upwards:  0.0 %
+Bin  2,  0.1 to  3.4 MGy: 14.9 % 
+Bin  3,  3.4 to  6.7 MGy: 11.5 % 
+Bin  4,  6.7 to 10.1 MGy:  6.3 % 
+Bin  5, 10.1 to 13.4 MGy:  3.9 % 
+Bin  6, 13.4 to 16.7 MGy:  3.0 % 
+Bin  7, 16.7 to 20.0 MGy:  3.0 % 
+Bin  8, 20.0 to 23.4 MGy:  3.0 % 
+Bin  9, 23.4 to 26.7 MGy:  2.3 % 
+Bin 10, 26.7 to 30.0 MGy:  1.9 % 
+Bin 11, 30.0 MGy upwards: 50.0 %

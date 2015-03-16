@@ -8,11 +8,11 @@ SolventHeavyConc Na 0
 
 Beam
 Type ExperimentalPGM
-File anotherbeamtest.pgm
+File beamtest.pgm
 PixelSize 0.3027 0.2995
 Flux 1e+12
 Energy 12.66
-Collimation Rectangular 60.0 100.0
+Collimation Rectangular 200.0 200.0
 
 
 Wedge 0 360
