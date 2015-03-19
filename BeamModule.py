@@ -18,7 +18,7 @@ class Beam():
     beamFlux = 1e12 #photons per second. ###NEED TO CONFIRM THE REAL VALUE
     beamEnergy = 12.66 #keV
     doseType = "DWD" #the dose type parsed from the RADDOSE-3D log file.
-    beamPixelSize = [0.3027, 0.2995] #THIS SHOULDN'T BE A CLASS ATTRIBUTE
+    beamPixelSize = [2, 2] #[0.3027, 0.2995] #THIS SHOULDN'T BE A CLASS ATTRIBUTE
 
     #Class constructor
     def __init__(self, beamArray, beamFlux, beamEnergy, beamPixelSize, pgmFileName, cameraSettings, doseType):
@@ -49,9 +49,15 @@ class Beam():
         self.transmission = cameraSettings[3]
         self.beamBlock = self.formRADDOSE3DBeamInputString(beamPixelSize)
 
+        #calculate percentage of zero values
+        numOfZeroElements = float((self.beamArray == 0).sum())
+        totalNumberOfElements = float(self.beamArray.size)
+        self.zeroBackgroundPercentage = (numOfZeroElements / totalNumberOfElements) * 100
+
         print "Running RADDOSE-3D to calculate the dose"
         print "The dose type selected is: " + doseType
         raddoseInfo = RaddoseBeamRun.RunRaddose(self.beamBlock,"testInput.txt",doseType)
+        self.doseType = doseType
         print "Dose value has been obtained."
         self.dose = raddoseInfo.dose
         print "SUCCESS :-) Beam has been successfully created"
@@ -95,8 +101,8 @@ class Beam():
         beamArray = cropBeamArray(beamCentroid,beamArray)
         print "Beam centering successful."
         slits = np.zeros(2, dtype=np.float)
-        slits[0] = 200
-        slits[1] = 200
+        slits[0] = 250
+        slits[1] = 250
         cameraSettings = (0,0,0,0,slits)
         beamFromApMeas = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, outputPGMFileName, cameraSettings, cls.doseType)
         return beamFromApMeas
@@ -251,6 +257,19 @@ def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostPro
         #Take an average of the two temporary beam arrays to get a single convolved beam array
         convolvedBeamArray = (tempBeamArrayX + tempBeamArrayY) / 2
 
+    ##############################################################
+    # Create plot
+    ##############################################################
+#     rowNum = math.floor(convolvedBeamArray.shape[0]/2.0)
+#     colNum = round(convolvedBeamArray.shape[1]/2.0)
+#     fig = plt.figure()
+#     plt.subplot(211)
+#     plt.plot(apertureXPosition, convolvedBeamArray[rowNum,0:], 'b-', apertureXPosition, apertureXMeasurement, 'ro')
+
+#     plt.subplot(212)
+#     plt.plot(apertureYPosition, convolvedBeamArray[0:,colNum], 'b-', apertureYPosition, apertureYMeasurement, 'ro')
+#     plt.show()
+
     if deconvole:
         #Create the aperture Point Spread Function.
         aperturePSF = createAperturePSF(apDiameter,apStep)
@@ -286,6 +305,22 @@ def generateBeamFromApMeas(beamApMeasXFilename, beamApMeasYFilename, beamPostPro
 
     #Scale the beam array
     beamArray = scaleArray(processedBeamArray)
+
+    ##############################################################
+    # Create plot
+    ##############################################################
+#     rowNum = math.floor(beamArray.shape[0]/2.0)
+#     colNum = round(beamArray.shape[1]/2.0)
+#     fig = plt.figure()
+#     plt.subplot(131)
+#     plt.imshow(beamArray)
+
+#     plt.subplot(132)
+#     plt.plot(apertureXPosition[0:len(beamArray[rowNum,0:])], beamArray[rowNum,0:], 'b-')
+
+#     plt.subplot(133)
+#     plt.plot(apertureYPosition, beamArray[0:,colNum], 'b-')
+#     plt.show()
 
     return beamArray
 
