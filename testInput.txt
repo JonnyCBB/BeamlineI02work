@@ -8,11 +8,11 @@ SolventHeavyConc Na 0
 
 Beam
 Type ExperimentalPGM
-File beam.pgm
-PixelSize 2 2
+File rgb2grayanalysis.pgm
+PixelSize 0.3027 0.2995
 Flux 1e+12
 Energy 12.66
-Collimation Rectangular 250.0 250.0
+Collimation Rectangular 60.0 100.0
 
 
 Wedge 0 360

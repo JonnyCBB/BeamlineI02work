@@ -18,7 +18,7 @@ class Beam():
     beamFlux = 1e12 #photons per second. ###NEED TO CONFIRM THE REAL VALUE
     beamEnergy = 12.66 #keV
     doseType = "DWD" #the dose type parsed from the RADDOSE-3D log file.
-    beamPixelSize = [2, 2] #[0.3027, 0.2995] #THIS SHOULDN'T BE A CLASS ATTRIBUTE
+    beamPixelSize = [0.3027, 0.2995] #THIS SHOULDN'T BE A CLASS ATTRIBUTE
 
     #Class constructor
     def __init__(self, beamArray, beamFlux, beamEnergy, beamPixelSize, pgmFileName, cameraSettings, doseType):
