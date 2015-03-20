@@ -19,6 +19,8 @@ class Beam():
     beamEnergy = 12.66 #keV
     doseType = "DWD" #the dose type parsed from the RADDOSE-3D log file.
     beamPixelSize = [0.3027, 0.2995] #THIS SHOULDN'T BE A CLASS ATTRIBUTE
+    extraX = 0
+    extraY = 0
 
     #Class constructor
     def __init__(self, beamArray, beamFlux, beamEnergy, beamPixelSize, pgmFileName, cameraSettings, doseType):
@@ -134,8 +136,14 @@ class Beam():
         print "Now centering the beam array..."
         beamCentroid = findCentroid(beamArray)
         print "Beam centering successful."
+        print "Cropping Beam Array so the beam is central..."
         beamArray = cropBeamArray(beamCentroid,beamArray)
+        print "Finished cropping"
         cameraSettings = parseBeamImageFilename(pngImage)
+        slits = cameraSettings[4]
+        print "Subtracting background from the beam image..."
+        beamArray = subtractBackground(beamArray, slits[0], slits[1], cls.beamPixelSize[0], cls.beamPixelSize[1])
+        print "Background substraction successful"
         beamFromPNG = cls(beamArray, cls.beamFlux, cls.beamEnergy, cls.beamPixelSize, outputPGMFileName, cameraSettings, cls.doseType)
         return beamFromPNG
 
@@ -860,3 +868,41 @@ def fitgaussian(data):
     errorfunction = lambda p: np.ravel(gauss2d(*p)(*np.indices(data.shape)) - data)
     p, success = leastsq(errorfunction, params)
     return p
+
+def createWindowAroundCentroid(array, xDistance, yDistance, pixelSizeX, pixelSizeY):
+    """Create a window that surrounds the centroid of the array
+    """
+    xCen, yCen = findCentroid(array)
+    pixelsInXDir = xDistance/(2.0 * pixelSizeX)
+    pixelsInYDir = yDistance/(2.0 * pixelSizeY)
+    xMin = xCen - pixelsInXDir
+    xMax = xCen + pixelsInXDir
+    yMin = yCen - pixelsInYDir
+    yMax = yCen + pixelsInYDir
+    return xMin, xMax, yMin, yMax
+
+def subtractBackground(array, xDistance, yDistance, pixelSizeX, pixelSizeY):
+    """Function that subtracts an average background from the beam array
+    based on the size of the slits.
+    """
+    window = createWindowAroundCentroid(array, xDistance, yDistance, pixelSizeX, pixelSizeY)
+    xMin = np.floor(window[0])
+    xMax = np.ceil(window[1])
+    yMin = np.floor(window[2])
+    yMax = np.ceil(window[3])
+
+    beamArray = array
+    backgroundList = []
+    #Loop through each element in the beam array and append background elements
+    #in a list
+    for i in xrange(0,beamArray.shape[0]):
+        for j in xrange(0,beamArray.shape[1]):
+            if j < xMin or j > xMax or i < yMin or i > yMax:
+                backgroundList.append(beamArray[i,j])
+
+    averageBackground = np.mean(backgroundList) #Average the background
+    beamMinusBackground = beamArray - averageBackground #Substract the average background
+    beamMinusBackground[beamMinusBackground < 0] = 0 #Set -ve values to zero
+    beamMinusBackground = np.around(beamMinusBackground) #round values to nearest integer
+    beamMinusBackground = beamMinusBackground.astype(int) #Store values as integers
+    return beamMinusBackground
