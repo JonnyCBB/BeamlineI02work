@@ -1,7 +1,0 @@
-Beam
-Type ExperimentalPGM
-File beamtest.pgm
-PixelSize 0.3 0.4
-Flux 1e+12
-Energy 12.66
-Collimation Rectangular 0.0 0.0
