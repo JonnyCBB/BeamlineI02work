@@ -4,8 +4,8 @@ from subprocess import check_output
 
 class RunRaddose():
 
-    def __init__(self, beamBlock, raddoseInputFile, doseType):
-        self.inputFilename = raddoseInputFile
+    def __init__(self, beamBlock, raddoseInputFileName, doseType):
+        self.inputFilename = raddoseInputFileName
         self.raddose3dpath = "raddose3d.jar"
         self.crystalBlock = self.createCrystalBlock()
         self.beamBlock = self.createBeamBlock(beamBlock)

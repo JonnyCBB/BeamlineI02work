@@ -1,4 +1,6 @@
 import BeamModule
+import RaddoseBeamRun
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -94,10 +96,51 @@ elif "Av" in noDeconvGaussShift.doseType:
     doseType = "Average Dose (Whole Crystal)"
 
 ##############################################################
-# Find max and min dose values
+# Run RADDOSE-3D for Ideal Gaussian Beam
 ##############################################################
+#Write beam block
+beamLine        = "Beam"
+typeLine        = "Type Gaussian"
+fwhmLine        = "FWHM {} {}".format(24.48, 81.96)
+fluxLine        = "Flux {flux}".format(flux=noDeconvGaussShift.beamFlux)
+energyLine      = "Energy {energy}".format(energy=noDeconvGaussShift.beamEnergy)
+collimationLine = "Collimation Rectangular {vert} {horz}".format(horz=noDeconvGaussShift.collimation[0], vert=noDeconvGaussShift.collimation[1])
+inputSequence = (beamLine,typeLine,fwhmLine,fluxLine
+                ,energyLine,collimationLine)
+newline = "\n"
+beamBlock = newline.join(inputSequence)
 
+raddoseGaussian = RaddoseBeamRun.RunRaddose(beamBlock, 'IdealGaussianInput.txt', noDeconvGaussShift.doseType)
 
+##############################################################
+# Find points close to ideal Gaussian
+##############################################################
+dataPoints = np.zeros((16,2))
+dataPoints[0,0], dataPoints[0,1] = noDeconvGaussThresh.zeroBackgroundPercentage, noDeconvGaussThresh.dose
+dataPoints[1,0], dataPoints[1,1] = noDeconvAvDataThresh.zeroBackgroundPercentage, noDeconvAvDataThresh.dose
+dataPoints[2,0], dataPoints[2,1] = deconvAvDataWeinerSmoothThresh.zeroBackgroundPercentage, deconvAvDataWeinerSmoothThresh.dose
+dataPoints[3,0], dataPoints[3,1] = deconvAvDataGaussSmoothThresh.zeroBackgroundPercentage, deconvAvDataGaussSmoothThresh.dose
+dataPoints[4,0], dataPoints[4,1] = deconvAvDataNoSmoothThresh.zeroBackgroundPercentage, deconvAvDataNoSmoothThresh.dose
+dataPoints[5,0], dataPoints[5,1] = deconvGaussWeinerSmoothThresh.zeroBackgroundPercentage, deconvGaussWeinerSmoothThresh.dose
+dataPoints[6,0], dataPoints[6,1] = deconvGaussGaussSmoothThresh.zeroBackgroundPercentage, deconvGaussGaussSmoothThresh.dose
+dataPoints[7,0], dataPoints[7,1] = deconvGaussNoSmoothThresh.zeroBackgroundPercentage, deconvGaussNoSmoothThresh.dose
+
+dataPoints[8,0], dataPoints[8,1] = noDeconvGaussShift.zeroBackgroundPercentage, noDeconvGaussShift.dose
+dataPoints[9,0], dataPoints[9,1] = noDeconvAvDataShift.zeroBackgroundPercentage, noDeconvAvDataShift.dose
+dataPoints[10,0], dataPoints[10,1] = deconvAvDataWeinerSmoothShift.zeroBackgroundPercentage, deconvAvDataWeinerSmoothShift.dose
+dataPoints[11,0], dataPoints[11,1] = deconvAvDataGaussSmoothShift.zeroBackgroundPercentage, deconvAvDataGaussSmoothShift.dose
+dataPoints[12,0], dataPoints[12,1] = deconvAvDataNoSmoothShift.zeroBackgroundPercentage, deconvAvDataNoSmoothShift.dose
+dataPoints[13,0], dataPoints[13,1] = deconvGaussWeinerSmoothShift.zeroBackgroundPercentage, deconvGaussWeinerSmoothShift.dose
+dataPoints[14,0], dataPoints[14,1] = deconvGaussGaussSmoothShift.zeroBackgroundPercentage, deconvGaussGaussSmoothShift.dose
+dataPoints[15,0], dataPoints[15,1] = deconvGaussNoSmoothShift.zeroBackgroundPercentage, deconvGaussNoSmoothShift.dose
+
+allDoses = dataPoints[0:,1]
+acceptableDoses = [dose for dose in allDoses if dose > 10]
+maxAcceptableDose = max(acceptableDoses)
+minAcceptableDose = min(acceptableDoses)
+
+#Calculate error
+error = (maxAcceptableDose - minAcceptableDose)/((maxAcceptableDose + minAcceptableDose)/2.0) * 100
 ##############################################################
 # Create plot
 ##############################################################
@@ -122,10 +165,16 @@ plt.plot(deconvGaussWeinerSmoothShift.zeroBackgroundPercentage, deconvGaussWeine
 plt.plot(deconvGaussGaussSmoothShift.zeroBackgroundPercentage, deconvGaussGaussSmoothShift.dose, marker='*', markersize=20, label='DecGauSmGausShi', linestyle="None")
 plt.plot(deconvGaussNoSmoothShift.zeroBackgroundPercentage, deconvGaussNoSmoothShift.dose, marker='*', markersize=20, label='DecGauSmNoneShi', linestyle="None")
 
-# draw a red hline at y=0 that spans the xrange
-l = plt.axhline(linewidth=4, color='r', linestyle='--', y=11.88)
+# draw a red hline at dose corresponding to ideal Gaussian that spans the xrange
+l = plt.axhline(linewidth=4, color='r', linestyle='--', y=raddoseGaussian.dose)
+#Draw translucent bar corresponding to acceptable dose ranges for a given beam
+p = plt.axhspan(minAcceptableDose, maxAcceptableDose, facecolor='g', alpha=0.5)
 
-p = plt.axhspan(11, 12.5, facecolor='0.5', alpha=0.5)
+#--------------------------------------------------
+#Annotate plot
+ax.annotate('Error is ' + str(round(error, 2))+ '%', xy=(20, 11.7), xytext=(5, 9),
+            arrowprops=dict(facecolor='black', shrink=0.05))
+
 #--------------------------------------------------
 # Change padding and margins, insert legend
 
